@@ -68,6 +68,30 @@ button,select,input{font:inherit;color:inherit}
 .controls input[type=date]{background:var(--plane);border:1px solid var(--ring);border-radius:8px;padding:5px 8px;font-size:13px}
 .spacer{flex:1 1 auto}
 .rangelbl{font-size:12px;color:var(--ink-3)}
+.camprow{margin-top:-8px}
+/* dropdown de campanha */
+.dd{position:relative;display:inline-block}
+.dd-panel{position:absolute;z-index:40;top:calc(100% + 6px);left:0;min-width:320px;max-width:min(92vw,560px);
+  max-height:60vh;overflow:auto;background:var(--card);border:1px solid var(--ring);border-radius:12px;
+  box-shadow:var(--shadow);padding:8px}
+.dd-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 6px 8px;
+  border-bottom:1px solid var(--grid);margin-bottom:6px;font-size:11.5px;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.dd-mini{appearance:none;border:1px solid var(--ring);background:var(--plane);color:var(--ink-2);
+  border-radius:7px;padding:3px 8px;font-size:11.5px;cursor:pointer;text-transform:none;letter-spacing:0}
+.dd-mini:hover{color:var(--ink-1);border-color:var(--brand)}
+.dd-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;font-size:12.5px;
+  color:var(--ink-2);cursor:pointer;line-height:1.25}
+.dd-item:hover{background:var(--brand-soft)}
+.dd-item input{accent-color:var(--brand);width:15px;height:15px;flex:0 0 auto;cursor:pointer}
+.dd-sp{flex:0 0 auto;min-width:64px;text-align:right;color:var(--ink-1);font-variant-numeric:tabular-nums;font-size:12px}
+.dd-nm{flex:1 1 auto;word-break:break-word}
+#campBtn.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+/* barra de aviso do filtro */
+.filterbar{background:color-mix(in srgb,var(--warning) 14%,transparent);
+  border:1px solid color-mix(in srgb,var(--warning) 40%,transparent);border-radius:10px;
+  padding:9px 12px;font-size:12.5px;color:var(--ink-2);margin-bottom:14px}
+.filterbar b{color:var(--ink-1)}
 
 /* ---------------------------------------------------------------- kpis */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin-bottom:14px}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Conta Casinha — Dashboard de Tráfego</title>
-<link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
 <div class="wrap">
@@ -52,6 +52,17 @@
     </div>
   </div>
 
+  <div class="controls camprow">
+    <div class="grp">
+      <label>Campanha</label>
+      <div class="dd" id="campWrap">
+        <button class="btn" id="campBtn" aria-haspopup="true" aria-expanded="false">Todas as campanhas ▾</button>
+        <div class="dd-panel" id="campPanel" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="filterBar"></div>
   <div id="overviewView"></div>
   <div id="trafficView" hidden></div>
   <div id="reportView" hidden></div>

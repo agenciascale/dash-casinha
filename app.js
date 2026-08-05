@@ -48,8 +48,14 @@
 
   var STATE = {
     from: minDate, to: maxDate, preset: 'all', compare: true, tab: 'overview',
-    metric: 'spend', treeSort: { key: 'spend', dir: -1 }, expanded: {}
+    metric: 'spend', treeSort: { key: 'spend', dir: -1 }, expanded: {}, camps: null
   };
+  // lista de campanhas presentes (por gasto desc)
+  var CAMP_SPEND = {}; grain.forEach(function (g) { CAMP_SPEND[g.camp] = (CAMP_SPEND[g.camp] || 0) + g.spend; });
+  var ALL_CAMPS = Object.keys(CAMP_SPEND).sort(function (a, b) { return CAMP_SPEND[b] - CAMP_SPEND[a]; });
+  function campOK(c) { return !STATE.camps || STATE.camps[c] === true; }
+  function campFilterActive() { return !!STATE.camps; }
+  function campSelectedCount() { return STATE.camps ? Object.keys(STATE.camps).filter(function (k) { return STATE.camps[k]; }).length : ALL_CAMPS.length; }
 
   /* ---------------------------------------------------------------- objetivo da campanha */
   function funnelOf(camp) {
@@ -81,17 +87,25 @@
   }
   function aggregate(from, to) {
     var t = blank();
-    for (var i = 0; i < daily.length; i++) {
-      var x = daily[i]; if (!within(x.d, from, to)) continue;
-      t.spend += x.spend; t.impr += x.impr; t.reach += x.reach; t.clk += x.clk; t.lead += x.lead; t.msg += x.msg;
+    // tudo vem do grain (tem campanha) → respeita o filtro de campanha
+    for (var i = 0; i < grain.length; i++) {
+      var g = grain[i]; if (!within(g.d, from, to)) continue; if (!campOK(g.camp)) continue;
+      t.spend += g.spend; t.impr += g.impr; t.reach += g.reach; t.clk += g.clk; t.lead += g.lead; t.msg += g.msg;
     }
     return derive(t);
   }
   function dailyRows(from, to) {
+    var md = {};
+    for (var j = 0; j < grain.length; j++) {
+      var g = grain[j]; if (!within(g.d, from, to)) continue; if (!campOK(g.camp)) continue;
+      var m = md[g.d] || (md[g.d] = { spend: 0, impr: 0, reach: 0, clk: 0, lead: 0, msg: 0 });
+      m.spend += g.spend; m.impr += g.impr; m.reach += g.reach; m.clk += g.clk; m.lead += g.lead; m.msg += g.msg;
+    }
     var out = [];
     for (var i = 0; i < daily.length; i++) {
       var x = daily[i]; if (!within(x.d, from, to)) continue;
-      out.push(derive(Object.assign(blank(), x)));
+      var m = md[x.d]; if (!m) { if (campFilterActive()) continue; m = { spend: x.spend, impr: x.impr, reach: x.reach, clk: x.clk, lead: x.lead, msg: x.msg }; }
+      out.push(derive(Object.assign(blank(), { d: x.d }, m)));
     }
     return out;
   }
@@ -273,7 +287,7 @@
   function buildTree(from, to) {
     var root = {};
     for (var i = 0; i < grain.length; i++) {
-      var g = grain[i]; if (!within(g.d, from, to)) continue;
+      var g = grain[i]; if (!within(g.d, from, to)) continue; if (!campOK(g.camp)) continue;
       var c = root[g.camp] || (root[g.camp] = tblank(g.camp));
       var s = c.kids[g.adset] || (c.kids[g.adset] = tblank(g.adset));
       var a = s.kids[g.ad] || (s.kids[g.ad] = tblank(g.ad));
@@ -293,7 +307,7 @@
   function adsByName(from, to) {
     var map = {};
     for (var i = 0; i < grain.length; i++) {
-      var g = grain[i]; if (!within(g.d, from, to)) continue;
+      var g = grain[i]; if (!within(g.d, from, to)) continue; if (!campOK(g.camp)) continue;
       var a = map[g.ad] || (map[g.ad] = tblank(g.ad));
       a.spend += g.spend; a.impr += g.impr; a.reach += g.reach; a.clk += g.clk; a.lead += g.lead; a.msg += g.msg;
     }
@@ -401,7 +415,7 @@
   };
   function renderFunilInv(from, to) {
     var g = {}, total = 0;
-    for (var i = 0; i < grain.length; i++) { var x = grain[i]; if (!within(x.d, from, to)) continue; var f = funnelOf(x.camp); (g[f] || (g[f] = { spend: 0, clk: 0, lead: 0, msg: 0, impr: 0 })); g[f].spend += x.spend; g[f].clk += x.clk; g[f].lead += x.lead; g[f].msg += x.msg; g[f].impr += x.impr; total += x.spend; }
+    for (var i = 0; i < grain.length; i++) { var x = grain[i]; if (!within(x.d, from, to)) continue; if (!campOK(x.camp)) continue; var f = funnelOf(x.camp); (g[f] || (g[f] = { spend: 0, clk: 0, lead: 0, msg: 0, impr: 0 })); g[f].spend += x.spend; g[f].clk += x.clk; g[f].lead += x.lead; g[f].msg += x.msg; g[f].impr += x.impr; total += x.spend; }
     var cards = ['Leads', 'Mensagens', 'Outros'].filter(function (k) { return g[k]; }).map(function (k) {
       var o = g[k], m = FUNIL_META[k], share = total ? o.spend / total : 0;
       var detail = k === 'Leads' ? (int(o.lead) + ' leads · ' + money0(div(o.spend, o.lead) || 0) + '/lead') : k === 'Mensagens' ? (int(o.msg) + ' msgs · ' + money0(div(o.spend, o.msg) || 0) + '/msg') : (int(o.impr) + ' impressões · ' + int(o.clk) + ' cliques');
@@ -650,9 +664,47 @@
     };
   }
 
+  /* ================================================================ filtro de campanha */
+  function setCamps(sel) {
+    if (!sel || sel.length === 0 || sel.length >= ALL_CAMPS.length) STATE.camps = null;
+    else { STATE.camps = {}; sel.forEach(function (n) { STATE.camps[n] = true; }); }
+    try { localStorage.setItem('cc-camps', STATE.camps ? JSON.stringify(Object.keys(STATE.camps)) : ''); } catch (e) { }
+    updateCampBtn();
+  }
+  function updateCampBtn() {
+    var b = $('campBtn'); if (!b) return;
+    b.textContent = (STATE.camps ? (campSelectedCount() + ' de ' + ALL_CAMPS.length + ' campanhas') : 'Todas as campanhas') + ' ▾';
+    b.classList.toggle('on', campFilterActive());
+  }
+  function renderCampPanel() {
+    var p = $('campPanel'); if (!p) return;
+    var allChecked = !STATE.camps;
+    var rows = ALL_CAMPS.map(function (c) {
+      var ck = allChecked || (STATE.camps && STATE.camps[c] === true);
+      return '<label class="dd-item"><input type="checkbox" data-camp="' + encodeURIComponent(c) + '"' + (ck ? ' checked' : '') + '><b class="dd-sp">' + money0(CAMP_SPEND[c]) + '</b><span class="dd-nm">' + esc(c) + '</span></label>';
+    }).join('');
+    p.innerHTML = '<div class="dd-head"><span>Filtrar campanhas</span><button class="dd-mini" id="campAll">Selecionar todas</button></div>' + rows;
+    function current() { var a = []; Array.prototype.forEach.call(p.querySelectorAll('[data-camp]'), function (cb) { if (cb.checked) a.push(decodeURIComponent(cb.dataset.camp)); }); return a; }
+    Array.prototype.forEach.call(p.querySelectorAll('[data-camp]'), function (cb) { cb.onchange = function () { setCamps(current()); refresh(); }; });
+    $('campAll').onclick = function () { Array.prototype.forEach.call(p.querySelectorAll('[data-camp]'), function (cb) { cb.checked = true; }); setCamps(null); refresh(); };
+  }
+  function initCampSelector() {
+    var b = $('campBtn'), p = $('campPanel'); if (!b || !p) return;
+    try { var saved = localStorage.getItem('cc-camps'); if (saved) { var arr = JSON.parse(saved).filter(function (n) { return ALL_CAMPS.indexOf(n) >= 0; }); if (arr.length && arr.length < ALL_CAMPS.length) { STATE.camps = {}; arr.forEach(function (n) { STATE.camps[n] = true; }); } } } catch (e) { }
+    updateCampBtn();
+    b.onclick = function (e) { e.stopPropagation(); var open = p.hidden; if (open) renderCampPanel(); p.hidden = !open; b.setAttribute('aria-expanded', String(open)); };
+    p.onclick = function (e) { e.stopPropagation(); };
+    document.addEventListener('click', function () { if (!p.hidden) { p.hidden = true; b.setAttribute('aria-expanded', 'false'); } });
+  }
+  function filterBarHTML() {
+    if (!campFilterActive()) return '';
+    return '<div class="filterbar">🔎 <b>Filtro de campanha ativo</b> — ' + campSelectedCount() + ' de ' + ALL_CAMPS.length + ' campanhas. Todos os números (investimento, leads, mensagens e mídia) refletem só as campanhas selecionadas.</div>';
+  }
+
   /* ================================================================ shell / roteamento */
   function refresh() {
     var len = diffDays(STATE.from, STATE.to) + 1;
+    $('filterBar').innerHTML = filterBarHTML();
     $('cmpNote').textContent = STATE.compare
       ? 'comparando com ' + brFull(dayAdd(dayAdd(STATE.from, -1), -(len - 1))) + ' – ' + brFull(dayAdd(STATE.from, -1)) + ' (' + len + (len > 1 ? ' dias' : ' dia') + ')'
       : len + (len > 1 ? ' dias selecionados' : ' dia selecionado');
@@ -711,6 +763,7 @@
       };
     });
 
+    initCampSelector();
     setPeriod(minDate, maxDate, 'all');
   }
 
