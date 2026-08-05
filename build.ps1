@@ -36,6 +36,8 @@ if ([string]::IsNullOrWhiteSpace($TOKEN)) {
   }
 }
 if ([string]::IsNullOrWhiteSpace($TOKEN)) { throw "META_ACCESS_TOKEN nao definido (env nem .env)." }
+# secret colado costuma vir com \n/espaco/aspas no fim -> Meta rejeita (code 190). Limpa.
+$TOKEN = $TOKEN.Trim().Trim('"').Trim("'").Trim()
 
 $today = ([DateTime]::UtcNow.AddHours(-3)).ToString("yyyy-MM-dd")   # BRT
 
