@@ -365,10 +365,30 @@
       ? '<b>' + int(totRes) + ' contatos</b> no período (' + int(cur.lead) + ' leads de formulário + ' + int(cur.msg) + ' mensagens) por <b>' + M.money(cur.spend) + '</b> investidos — custo médio por contato <b>' + M.money(cur.cpr) + '</b>.'
       : 'Sem lead nem mensagem no período.';
 
+    // ---- Leads qualificados (dos formularios; contagens sem PII, respeita o periodo) ----
+    var qualHTML = '';
+    var QUAL = (typeof DASH !== 'undefined' && DASH.qual) ? DASH.qual : null;
+    if (QUAL) {
+      var qforms = [QUAL.casamento, QUAL.corporativo].filter(Boolean);
+      var qcards = qforms.map(function (f) {
+        var t = 0, q = 0;
+        if (f.byDay) { for (var d in f.byDay) { if (d >= from && d <= to) { t += (f.byDay[d].t || 0); q += (f.byDay[d].q || 0); } } }
+        var rate = t > 0 ? (q / t * 100) : 0;
+        return '<div class="qcard"><div class="qk">' + f.label + '</div>' +
+          '<div class="qv">' + int(q) + ' <small>' + (q === 1 ? 'qualificado' : 'qualificados') + '</small></div>' +
+          '<div class="qbar"><div class="qbar-fill" style="width:' + rate.toFixed(0) + '%"></div></div>' +
+          '<div class="qd"><b>' + rate.toFixed(0) + '%</b> de ' + int(t) + ' leads no período</div></div>';
+      }).join('');
+      qualHTML = '<div class="panel"><h2>Leads qualificados <span style="font-weight:500;color:var(--ink-3)">— dos formulários, no período</span></h2>' +
+        '<p class="note"><b>Casamento:</b> 30–60 convidados <b>e</b> casamento em até 6 meses. &nbsp;<b>Corporativo:</b> 60–80 pessoas <b>e</b> happy hour/welcome coffee. <span style="color:var(--ink-3)">Lista com contatos fica na planilha privada.</span></p>' +
+        '<div class="qgrid">' + qcards + '</div></div>';
+    }
+
     var overview =
       '<div class="panel"><div class="health" id="health">' + healthHTML + '</div></div>' +
       '<div class="hero" id="hero">' + heroHTML + '</div>' +
       '<p class="hero-line" style="margin-bottom:10px">' + heroLine + '</p>' +
+      qualHTML +
       '<div class="panel"><h2>Investimento por objetivo <span style="font-weight:500;color:var(--ink-3)">— com imposto ×' + taxStr(TAX) + '</span></h2><div class="funil-grid" id="funilInv"></div></div>' +
       '<div class="grid-funnel">' +
       '<div class="panel"><h2>Funil completo</h2><p class="note">Investimento → Impressões → Cliques → Leads. Cada etapa mostra o <b>volume</b> e, à direita, o <b>custo</b> e a <b>taxa de passagem</b>.</p><div class="funnel" id="funnel"></div></div>' +

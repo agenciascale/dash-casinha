@@ -105,6 +105,37 @@ $totLead = 0; ($dd.Values | ForEach-Object { $totLead += $_.lead })
 $totMsg  = 0; ($dd.Values | ForEach-Object { $totMsg  += $_.msg })
 Write-Host ("  dias: {0} | leads: {1} | mensagens: {2}" -f $daily.Count, $totLead, $totMsg)
 
+# ---------------- QUALIFICADOS (planilha de forms - so contagens, sem PII) ----------------
+# Le as abas fonte via CSV publico e conta qualificados por dia. Regras (Leandro):
+#   Casamento   = convidados faixa 20-40 ou 41-60 (media 30-60)  E  prazo ate 3m ou 3-6m
+#   Corporativo = 61-80 pessoas                                   E  gastronomia happy hour ou welcome coffee
+# Colunas (0-based): 1=created_time, 12=pergunta convidados/pessoas, 14=pergunta prazo/gastronomia
+$SHEET_ID = "1kVliNsOeAhXMisENdzn8yhxfxrhNjy3K2kkKTeslh5M"
+function Get-Qualif($sheet, $mrx, $orx) {
+  $u = "https://docs.google.com/spreadsheets/d/$SHEET_ID/gviz/tq?tqx=out:csv&sheet=$sheet"
+  try { $csv = Invoke-RestMethod -Uri $u } catch { Write-Host "  WARN: falha ao ler aba $sheet"; return $null }
+  $rows = $csv | ConvertFrom-Csv
+  $byDay = @{}; $tot = 0; $qual = 0
+  foreach ($r in $rows) {
+    $v = @($r.PSObject.Properties.Value)
+    if ($v.Count -lt 15) { continue }
+    $ct = "$($v[1])"
+    if ($ct.Length -lt 10) { continue }
+    $day = $ct.Substring(0, 10)
+    if ($day -notmatch '^\d{4}-\d{2}-\d{2}$') { continue }
+    $isQ = ("$($v[12])" -match $mrx) -and ("$($v[14])" -match $orx)
+    $tot++; if ($isQ) { $qual++ }
+    if (-not $byDay.ContainsKey($day)) { $byDay[$day] = [ordered]@{ t = 0; q = 0 } }
+    $byDay[$day].t++; if ($isQ) { $byDay[$day].q++ }
+  }
+  return [ordered]@{ total = $tot; qualif = $qual; byDay = $byDay }
+}
+$qualCas  = Get-Qualif "Casamento"   "20_a_40|41_a_60" "3_meses|3_e_6"
+$qualCorp = Get-Qualif "Corporativo" "61_a_80"         "happy_hour|welcome_coffee"
+Write-Host ("  qualificados -> Casamento: {0}/{1} | Corporativo: {2}/{3}" -f `
+  $(if ($qualCas) { $qualCas.qualif } else { '-' }), $(if ($qualCas) { $qualCas.total } else { '-' }), `
+  $(if ($qualCorp) { $qualCorp.qualif } else { '-' }), $(if ($qualCorp) { $qualCorp.total } else { '-' }))
+
 # ---------------- OUTPUT data.js ----------------
 $now = [DateTime]::UtcNow.AddHours(-3)   # BRT
 $meta = [ordered]@{ generatedAt = $now.ToString("yyyy-MM-dd HH:mm"); tz="BRT"; tax=$TAX;
@@ -113,6 +144,12 @@ $meta = [ordered]@{ generatedAt = $now.ToString("yyyy-MM-dd HH:mm"); tz="BRT"; t
 $js = "window.DASH=" + ($meta | ConvertTo-Json -Compress -Depth 4) + ";" + [Environment]::NewLine
 $js += "window.DASH.daily=" + (JsonStr $daily) + ";" + [Environment]::NewLine
 $js += "window.DASH.grain=" + (JsonStr $grain) + ";" + [Environment]::NewLine
+
+$qual = [ordered]@{
+  casamento   = if ($qualCas)  { [ordered]@{ label = "Casamento";   total = $qualCas.total;  qualif = $qualCas.qualif;  byDay = $qualCas.byDay } }  else { $null }
+  corporativo = if ($qualCorp) { [ordered]@{ label = "Corporativo"; total = $qualCorp.total; qualif = $qualCorp.qualif; byDay = $qualCorp.byDay } } else { $null }
+}
+$js += "window.DASH.qual=" + ($qual | ConvertTo-Json -Compress -Depth 6) + ";" + [Environment]::NewLine
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [IO.File]::WriteAllText($OutFile, $js, $utf8NoBom)
