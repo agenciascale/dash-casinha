@@ -114,7 +114,7 @@
      Classifica cada métrica em bom / médio / ruim. dir 'high' = maior é melhor. */
   var BANDS = {
     ctr: { label: 'CTR (link)', good: 0.01, mid: 0.006, dir: 'high', fmt: M.pct1 },
-    cpc: { label: 'CPC', good: 2, mid: 4, dir: 'low', fmt: M.money },
+    cpc: { label: 'CPC (link)', good: 2, mid: 4, dir: 'low', fmt: M.money },
     cpm: { label: 'CPM', good: 35, mid: 60, dir: 'low', fmt: M.money }
   };
   function statusOf(v, b) {
@@ -319,9 +319,9 @@
     { k: 'label', label: 'Campanha › Conjunto › Anúncio' },
     { k: 'spend', label: 'Invest.', fmt: M.money },
     { k: 'cpm', label: 'CPM', fmt: M.money, scale: 'low' },
-    { k: 'ctr', label: 'CTR', fmt: M.pct1, scale: 'high' },
-    { k: 'cpc', label: 'CPC', fmt: M.money, scale: 'low' },
-    { k: 'clk', label: 'Cliques', fmt: M.int },
+    { k: 'ctr', label: 'CTR (link)', fmt: M.pct1, scale: 'high' },
+    { k: 'cpc', label: 'CPC (link)', fmt: M.money, scale: 'low' },
+    { k: 'clk', label: 'Cliques (link)', fmt: M.int },
     { k: 'lead', label: 'Leads', fmt: M.int, scale: 'high' },
     { k: 'cpl', label: 'Custo/lead', fmt: M.money, scale: 'low' },
     { k: 'msg', label: 'Msgs', fmt: M.int },
@@ -567,9 +567,9 @@
     var METRICS = [
       { k: 'spend', label: 'Investimento', fmt: M.money0 }, { k: 'lead', label: 'Leads', fmt: M.int },
       { k: 'msg', label: 'Mensagens', fmt: M.int }, { k: 'cpl', label: 'Custo/lead', fmt: M.money },
-      { k: 'cpmsg', label: 'Custo/msg', fmt: M.money }, { k: 'cpc', label: 'CPC', fmt: M.money },
-      { k: 'cpm', label: 'CPM', fmt: M.money0 }, { k: 'ctr', label: 'CTR', fmt: M.pct1 },
-      { k: 'impr', label: 'Impressões', fmt: M.int }, { k: 'clk', label: 'Cliques', fmt: M.int }
+      { k: 'cpmsg', label: 'Custo/msg', fmt: M.money }, { k: 'cpc', label: 'CPC (link)', fmt: M.money },
+      { k: 'cpm', label: 'CPM', fmt: M.money0 }, { k: 'ctr', label: 'CTR (link)', fmt: M.pct1 },
+      { k: 'impr', label: 'Impressões', fmt: M.int }, { k: 'clk', label: 'Cliques (link)', fmt: M.int }
     ];
     $('metricTabs').innerHTML = METRICS.map(function (x) { return '<button class="btn' + (x.k === STATE.metric ? ' on' : '') + '" data-metric="' + x.k + '">' + x.label + '</button>'; }).join('');
     var met = METRICS.find(function (m) { return m.k === STATE.metric; }) || METRICS[0];
@@ -593,7 +593,7 @@
     for (var i = 0; i < grain.length; i++) { var x = grain[i]; if (!within(x.d, from, to)) continue; if (!campOK(x.camp)) continue; var f = funnelOf(x.camp); (g[f] || (g[f] = { spend: 0, clk: 0, lead: 0, msg: 0, impr: 0 })); g[f].spend += x.spend; g[f].clk += x.clk; g[f].lead += x.lead; g[f].msg += x.msg; g[f].impr += x.impr; total += x.spend; }
     var cards = ['Leads', 'Mensagens', 'Outros'].filter(function (k) { return g[k]; }).map(function (k) {
       var o = g[k], m = FUNIL_META[k], share = total ? o.spend / total : 0;
-      var detail = k === 'Leads' ? (int(o.lead) + ' leads · ' + money0(div(o.spend, o.lead) || 0) + '/lead') : k === 'Mensagens' ? (int(o.msg) + ' msgs · ' + money0(div(o.spend, o.msg) || 0) + '/msg') : (int(o.impr) + ' impressões · ' + int(o.clk) + ' cliques');
+      var detail = k === 'Leads' ? (int(o.lead) + ' leads · ' + money0(div(o.spend, o.lead) || 0) + '/lead') : k === 'Mensagens' ? (int(o.msg) + ' msgs · ' + money0(div(o.spend, o.msg) || 0) + '/msg') : (int(o.impr) + ' impressões · ' + int(o.clk) + ' cliques (link)');
       return '<div class="finv"><div class="fshare">' + pct1(share) + '</div><div class="ftop"><span class="fico" style="background:' + m.color + '"></span>' + k + '</div><div class="fmain" style="color:' + m.color + '">' + money0(o.spend) + '</div><div class="fmeta">' + m.desc + '<br>' + detail + '</div></div>';
     });
     cards.push('<div class="finv total"><div class="ftop">Σ Total</div><div class="fmain">' + money0(total) + '</div><div class="fmeta">soma dos objetivos · com imposto ×' + taxStr(TAX) + '</div></div>');
@@ -603,7 +603,7 @@
     var stages = [
       { n: 'Investimento', big: M.money(c.spend), bg: '#8fe01e', ink: '#0c1400', cl: 'Gasto bruto', cv: M.money(c.spend / TAX), sub: '+ imposto ×' + taxStr(TAX) + ' = <b>' + M.money(c.spend) + '</b>' },
       { n: 'Impressões', big: M.int(c.impr), bg: '#7ecb1c', ink: '#0c1400', cl: 'CPM', cv: M.money(c.cpm), sub: 'CTR (link) <b>' + M.pct1(c.ctr) + '</b>' },
-      { n: 'Cliques (link)', big: M.int(c.clk), bg: '#5aa60f', ink: '#fff', cl: 'CPC', cv: M.money(c.cpc), sub: 'Clique → Lead <b>' + M.pct1(c.leadRate) + '</b>' },
+      { n: 'Cliques (link)', big: M.int(c.clk), bg: '#5aa60f', ink: '#fff', cl: 'CPC (link)', cv: M.money(c.cpc), sub: 'Clique → Lead <b>' + M.pct1(c.leadRate) + '</b>' },
       { n: 'Leads', big: M.int(c.lead), bg: '#356606', ink: '#fff', cl: 'Custo / Lead', cv: M.money(c.cpl), sub: c.msg > 0 ? '+ <b>' + M.int(c.msg) + '</b> mensagens (custo/msg ' + M.money(c.cpmsg) + ')' : 'resultado principal' }
     ];
     $('funnel').innerHTML = stages.map(function (s) {
@@ -614,8 +614,8 @@
 
   var DCOLS = [
     { k: 'd', label: 'Dia' }, { k: 'spend', label: 'Invest.', fmt: M.money }, { k: 'cpm', label: 'CPM', fmt: M.money, scale: 'low' },
-    { k: 'cpc', label: 'CPC', fmt: M.money, scale: 'low' }, { k: 'ctr', label: 'CTR', fmt: M.pct1, scale: 'high' },
-    { k: 'clk', label: 'Cliques', fmt: M.int }, { k: 'lead', label: 'Leads', fmt: M.int, scale: 'high' }, { k: 'cpl', label: 'Custo/lead', fmt: M.money, scale: 'low' },
+    { k: 'cpc', label: 'CPC (link)', fmt: M.money, scale: 'low' }, { k: 'ctr', label: 'CTR (link)', fmt: M.pct1, scale: 'high' },
+    { k: 'clk', label: 'Cliques (link)', fmt: M.int }, { k: 'lead', label: 'Leads', fmt: M.int, scale: 'high' }, { k: 'cpl', label: 'Custo/lead', fmt: M.money, scale: 'low' },
     { k: 'msg', label: 'Msgs', fmt: M.int }, { k: 'cpmsg', label: 'Custo/msg', fmt: M.money, scale: 'low' }
   ];
   function renderDaily(from, to) {
@@ -653,8 +653,8 @@
       kpi('Investimento', M.money0(cur.spend), 'com imposto', miniDelta(cur.spend, prev && prev.spend, null)),
       kpi('CPM', M.money(cur.cpm), 'bom ≤ R$35', flagFor('cpm', cur.cpm)),
       kpi('CTR (link)', M.pct1(cur.ctr), 'bom ≥ 1%', flagFor('ctr', cur.ctr)),
-      kpi('CPC', M.money(cur.cpc), 'bom ≤ R$2', flagFor('cpc', cur.cpc)),
-      kpi('Cliques', M.int(cur.clk), int(cur.impr) + ' impressões', ''),
+      kpi('CPC (link)', M.money(cur.cpc), 'bom ≤ R$2', flagFor('cpc', cur.cpc)),
+      kpi('Cliques (link)', M.int(cur.clk), int(cur.impr) + ' impressões', ''),
       kpi('Leads', M.int(cur.lead), 'custo/lead ' + M.money(cur.cpl), miniDelta(cur.lead, prev && prev.lead, true)),
       kpi('Mensagens', M.int(cur.msg), 'custo/msg ' + M.money(cur.cpmsg), miniDelta(cur.msg, prev && prev.msg, true)),
       kpi('Clique → Lead', M.pct1(cur.leadRate), 'leads ÷ cliques', '')
@@ -734,25 +734,25 @@
     var perLabel = days === 1 ? brFull(from) : brFull(from) + ' a ' + brFull(to) + ' · ' + days + ' dias';
 
     function selo(k, v) { var st = statusOf(v, BANDS[k]); return st ? '<span class="rep-flag ' + st.cls + '">' + st.word + '</span>' : ''; }
-    var dTbl = '<div class="tblwrap"><table style="min-width:520px"><thead><tr><th style="text-align:left">Dia</th><th>Gasto</th><th>Cliques</th><th>Leads</th><th>Custo/lead</th><th>Msgs</th></tr></thead><tbody>' +
+    var dTbl = '<div class="tblwrap"><table style="min-width:520px"><thead><tr><th style="text-align:left">Dia</th><th>Gasto</th><th>Cliques (link)</th><th>Leads</th><th>Custo/lead</th><th>Msgs</th></tr></thead><tbody>' +
       dRows.slice().reverse().map(function (r) { return '<tr><td style="text-align:left">' + brFull(r.d) + '</td><td>' + M.money(r.spend) + '</td><td>' + int(r.clk) + '</td><td>' + int(r.lead) + '</td><td>' + M.money(r.cpl) + '</td><td>' + int(r.msg) + '</td></tr>'; }).join('') + '</tbody></table></div>';
 
     var secVisual =
       '<div class="rep-sec"><div class="step">1 · RESUMO</div><h3>📊 Números do período</h3><div class="rep-stats">' +
       repStat('Investimento', M.money(cur.spend)) + repStat('Leads', int(cur.lead)) +
       repStat('Custo por lead', M.money(cur.cpl)) + repStat('Mensagens', int(cur.msg)) +
-      repStat('Custo por msg', M.money(cur.cpmsg)) + repStat('Cliques', int(cur.clk)) + '</div>' +
+      repStat('Custo por msg', M.money(cur.cpmsg)) + repStat('Cliques (link)', int(cur.clk)) + '</div>' +
       '<p class="rep-p muted">' + int(cur.lead + cur.msg) + ' contatos no total (leads + mensagens) · custo médio por contato ' + M.money(cur.cpr) + '.</p></div>' +
 
       '<div class="rep-sec"><div class="step">2 · MÍDIA (TOPO)</div><h3>🚀 Eficiência da mídia</h3><div class="rep-stats">' +
-      repStat('CTR ' + selo('ctr', cur.ctr), M.pct1(cur.ctr)) + repStat('CPC ' + selo('cpc', cur.cpc), M.money(cur.cpc)) +
-      repStat('CPM ' + selo('cpm', cur.cpm), M.money(cur.cpm)) + repStat('Impressões', int(cur.impr)) + repStat('Cliques', int(cur.clk)) + '</div>' +
-      '<p class="rep-p muted">Selos pela régua de benchmarks: CTR (link) bom ≥ 1% · CPC bom ≤ R$2 · CPM bom ≤ R$35.</p></div>' +
+      repStat('CTR (link) ' + selo('ctr', cur.ctr), M.pct1(cur.ctr)) + repStat('CPC (link) ' + selo('cpc', cur.cpc), M.money(cur.cpc)) +
+      repStat('CPM ' + selo('cpm', cur.cpm), M.money(cur.cpm)) + repStat('Impressões', int(cur.impr)) + repStat('Cliques (link)', int(cur.clk)) + '</div>' +
+      '<p class="rep-p muted">Selos pela régua de benchmarks: CTR (link) bom ≥ 1% · CPC (link) bom ≤ R$2 · CPM bom ≤ R$35.</p></div>' +
 
       '<div class="rep-sec"><div class="step">3 · DIA A DIA</div><h3>📅 Funil por dia</h3>' + dTbl + '</div>' +
 
       '<div class="rep-sec"><div class="step">4 · CAMPANHAS</div><h3>🗂️ Investimento e resultados</h3>' +
-      '<div class="tblwrap"><table style="min-width:520px"><thead><tr><th style="text-align:left">Campanha</th><th>Gasto</th><th>CTR</th><th>CPC</th><th>Leads</th><th>Custo/lead</th><th>Msgs</th></tr></thead><tbody>' +
+      '<div class="tblwrap"><table style="min-width:520px"><thead><tr><th style="text-align:left">Campanha</th><th>Gasto</th><th>CTR (link)</th><th>CPC (link)</th><th>Leads</th><th>Custo/lead</th><th>Msgs</th></tr></thead><tbody>' +
       camps.filter(function (c) { return c.spend > 0; }).sort(function (a, b) { return b.spend - a.spend; }).map(function (c) { return '<tr><td style="text-align:left">' + esc(c.label) + '</td><td>' + M.money(c.spend) + '</td><td>' + M.pct1(c.ctr) + '</td><td>' + M.money(c.cpc) + '</td><td>' + int(c.lead) + '</td><td>' + M.money(c.cpl) + '</td><td>' + int(c.msg) + '</td></tr>'; }).join('') + '</tbody></table></div></div>' +
 
       '<div class="rep-sec"><div class="step">5 · MELHORES ANÚNCIOS</div><h3>🏆 Destaques pra produzir mais</h3>' +
