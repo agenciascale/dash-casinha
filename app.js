@@ -9,6 +9,7 @@
 (function () {
   "use strict";
   var D = window.DASH || {};
+  var CLIENT = !!window.__CLIENT__;   // página do cliente (ranking.html): Visão Geral enxuta, sem aba Tráfego
   var arr = function (x) { return Array.isArray(x) ? x : (x ? [x] : []); };
   var daily = arr(D.daily).slice().sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; });
   var grain = arr(D.grain);
@@ -534,9 +535,10 @@
       '<div class="op">=</div>' +
       '<div class="hcard roas"><div class="hk">🎯 Custo por lead <small>CPL</small></div>' +
       '<div class="hv">' + M.money(cur.cpl) + '</div><div class="hd">por lead de formulário</div></div>' +
-      '<div class="op">·</div>' +
-      '<div class="hcard"><div class="hk">💬 Mensagens <small>secundário</small></div>' +
-      '<div class="hv">' + M.int(cur.msg) + '</div><div class="hd">custo/msg ' + M.money(cur.cpmsg) + '</div></div>';
+      (CLIENT ? '' :
+        '<div class="op">·</div>' +
+        '<div class="hcard"><div class="hk">💬 Mensagens <small>secundário</small></div>' +
+        '<div class="hv">' + M.int(cur.msg) + '</div><div class="hd">custo/msg ' + M.money(cur.cpmsg) + '</div></div>');
 
     var totRes = cur.lead + cur.msg;
     var heroLine = (cur.lead > 0 || cur.msg > 0)
@@ -559,8 +561,9 @@
       '<div class="panel"><h2>Resultados por dia</h2><p class="note">Barras = <b>Investimento c/ imposto</b> (esq., R$) · linha = <b>Leads</b> (dir., nº).</p><div class="legend" id="legA"></div><div id="chA"></div>' +
       '<h2 style="margin-top:20px">Leads × Mensagens × Custo/lead</h2><p class="note">Barras = <b>Leads</b> e <b>Mensagens</b> (esq., nº) · linha = <b>Custo por lead</b> (dir., R$).</p><div class="legend" id="legB"></div><div id="chB"></div></div>' +
       '</div>' +
-      '<div class="panel"><h2 id="metricTitle">Investimento por dia</h2><p class="note">Escolha a métrica pra ver a evolução dia a dia no período.</p><div class="tabs" id="metricTabs"></div><div class="legend" id="legend"></div><div id="chMetric"></div></div>' +
-      '<div class="panel"><h2>Visão diária — principais métricas por dia</h2><p class="note">Uma linha por dia, mais recente no topo — role pra ver os demais dias. Heatmap por coluna: <b style="color:var(--good-text)">verde = melhor</b>, <b style="color:var(--critical)">vermelho = pior</b> no período.</p><div class="tblwrap daily-scroll"><table id="dtbl" class="daily"></table></div></div>';
+      (CLIENT ? '' :
+        '<div class="panel"><h2 id="metricTitle">Investimento por dia</h2><p class="note">Escolha a métrica pra ver a evolução dia a dia no período.</p><div class="tabs" id="metricTabs"></div><div class="legend" id="legend"></div><div id="chMetric"></div></div>' +
+        '<div class="panel"><h2>Visão diária — principais métricas por dia</h2><p class="note">Uma linha por dia, mais recente no topo — role pra ver os demais dias. Heatmap por coluna: <b style="color:var(--good-text)">verde = melhor</b>, <b style="color:var(--critical)">vermelho = pior</b> no período.</p><div class="tblwrap daily-scroll"><table id="dtbl" class="daily"></table></div></div>');
 
     $('overviewView').innerHTML = overview;
     paintRanking();
@@ -573,23 +576,25 @@
     $('legA').innerHTML = '<span>' + lgSq('var(--critical)') + '<span style="color:var(--ink-2)">Investimento c/ imposto</span></span><span>' + lgLn('var(--good)') + '<span style="color:var(--ink-2)">Leads (eixo dir.)</span></span>';
     $('legB').innerHTML = '<span>' + lgSq('var(--good)') + '<span style="color:var(--ink-2)">Leads</span></span><span>' + lgSq('var(--series-2)') + '<span style="color:var(--ink-2)">Mensagens</span></span><span>' + lgLn('var(--ink-1)') + '<span style="color:var(--ink-2)">Custo/lead (eixo dir.)</span></span>';
 
-    var METRICS = [
-      { k: 'spend', label: 'Investimento', fmt: M.money0 }, { k: 'lead', label: 'Leads', fmt: M.int },
-      { k: 'msg', label: 'Mensagens', fmt: M.int }, { k: 'cpl', label: 'Custo/lead', fmt: M.money },
-      { k: 'cpmsg', label: 'Custo/msg', fmt: M.money }, { k: 'cpc', label: 'CPC (link)', fmt: M.money },
-      { k: 'cpm', label: 'CPM', fmt: M.money0 }, { k: 'ctr', label: 'CTR (link)', fmt: M.pct1 },
-      { k: 'impr', label: 'Impressões', fmt: M.int }, { k: 'clk', label: 'Cliques (link)', fmt: M.int }
-    ];
-    $('metricTabs').innerHTML = METRICS.map(function (x) { return '<button class="btn' + (x.k === STATE.metric ? ' on' : '') + '" data-metric="' + x.k + '">' + x.label + '</button>'; }).join('');
-    var met = METRICS.find(function (m) { return m.k === STATE.metric; }) || METRICS[0];
-    var series = [{ name: 'Período atual', color: 'var(--series-1)', values: rows.map(function (r) { return r[met.k]; }), fullLabels: rows.map(function (r) { return brFull(r.d); }) }];
-    if (STATE.compare) series.push({ name: 'Período anterior', color: 'var(--series-2)', dashed: true, values: rows.map(function (_, i) { return pRows[i] ? pRows[i][met.k] : null; }) });
-    $('legend').innerHTML = series.length > 1 ? series.map(function (s) { return '<span style="color:' + s.color + '"><i class="' + (s.dashed ? 'dash' : '') + '" style="background:' + (s.dashed ? 'transparent' : s.color) + '"></i><span style="color:var(--ink-2)">' + s.name + '</span></span>'; }).join('') : '';
-    lineChart($('chMetric'), rows.map(function (r) { return brDate(r.d); }), series, met.fmt);
-    $('metricTitle').textContent = met.label + ' por dia';
-    Array.prototype.forEach.call(document.querySelectorAll('[data-metric]'), function (b) { b.onclick = function () { STATE.metric = b.dataset.metric; renderOverview(); }; });
+    if (!CLIENT) {
+      var METRICS = [
+        { k: 'spend', label: 'Investimento', fmt: M.money0 }, { k: 'lead', label: 'Leads', fmt: M.int },
+        { k: 'msg', label: 'Mensagens', fmt: M.int }, { k: 'cpl', label: 'Custo/lead', fmt: M.money },
+        { k: 'cpmsg', label: 'Custo/msg', fmt: M.money }, { k: 'cpc', label: 'CPC (link)', fmt: M.money },
+        { k: 'cpm', label: 'CPM', fmt: M.money0 }, { k: 'ctr', label: 'CTR (link)', fmt: M.pct1 },
+        { k: 'impr', label: 'Impressões', fmt: M.int }, { k: 'clk', label: 'Cliques (link)', fmt: M.int }
+      ];
+      $('metricTabs').innerHTML = METRICS.map(function (x) { return '<button class="btn' + (x.k === STATE.metric ? ' on' : '') + '" data-metric="' + x.k + '">' + x.label + '</button>'; }).join('');
+      var met = METRICS.find(function (m) { return m.k === STATE.metric; }) || METRICS[0];
+      var series = [{ name: 'Período atual', color: 'var(--series-1)', values: rows.map(function (r) { return r[met.k]; }), fullLabels: rows.map(function (r) { return brFull(r.d); }) }];
+      if (STATE.compare) series.push({ name: 'Período anterior', color: 'var(--series-2)', dashed: true, values: rows.map(function (_, i) { return pRows[i] ? pRows[i][met.k] : null; }) });
+      $('legend').innerHTML = series.length > 1 ? series.map(function (s) { return '<span style="color:' + s.color + '"><i class="' + (s.dashed ? 'dash' : '') + '" style="background:' + (s.dashed ? 'transparent' : s.color) + '"></i><span style="color:var(--ink-2)">' + s.name + '</span></span>'; }).join('') : '';
+      lineChart($('chMetric'), rows.map(function (r) { return brDate(r.d); }), series, met.fmt);
+      $('metricTitle').textContent = met.label + ' por dia';
+      Array.prototype.forEach.call(document.querySelectorAll('[data-metric]'), function (b) { b.onclick = function () { STATE.metric = b.dataset.metric; renderOverview(); }; });
 
-    renderDaily(from, to);
+      renderDaily(from, to);
+    }
   }
 
   var FUNIL_META = {
@@ -889,8 +894,8 @@
     $('filterBar').innerHTML = filterBarHTML();
     $('cmpNote').textContent = len + (len > 1 ? ' dias selecionados' : ' dia selecionado');
     $('overviewView').hidden = STATE.tab !== 'overview';
-    $('trafficView').hidden = STATE.tab !== 'traffic';
-    if (STATE.tab === 'traffic') renderTraffic();
+    var _tv = $('trafficView'); if (_tv) _tv.hidden = STATE.tab !== 'traffic';
+    if (STATE.tab === 'traffic' && _tv) renderTraffic();
     else renderOverview();
   }
   function setPeriod(from, to, preset) {
@@ -929,7 +934,7 @@
     function clampDates() { var f = $('from').value, t = $('to').value; if (!f || !t) return; if (f > t) { var tmp = f; f = t; t = tmp; } setPeriod(f, t, 'custom'); }
     $('from').onchange = clampDates; $('to').onchange = clampDates;
 
-    try { var tv = localStorage.getItem('cc-tab'); if (['overview', 'traffic'].indexOf(tv) >= 0) STATE.tab = tv; } catch (e) { }
+    if (!CLIENT) { try { var tv = localStorage.getItem('cc-tab'); if (['overview', 'traffic'].indexOf(tv) >= 0) STATE.tab = tv; } catch (e) { } }
     Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
       b.setAttribute('aria-selected', b.dataset.tab === STATE.tab);
       b.onclick = function () {
@@ -949,19 +954,10 @@
   if ($('refresh')) $('refresh').onclick = function () { var b = this; b.textContent = '⏳ Atualizando…'; b.disabled = true; setTimeout(function () { location.reload(); }, 60); };
   try { var saved = localStorage.getItem('cc-theme'); applyTheme(saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')); } catch (e) { applyTheme('dark'); }
 
-  /* ---------------------------------------------------------------- modo só-ranking (página do cliente) */
-  function initRankingOnly() {
-    STATE.tab = 'overview';
-    STATE.from = '2000-01-01'; STATE.to = '2100-12-31';   // todos os leads (página do cliente não filtra por data)
-    paintRanking();     // mostra "carregando…"
-    fetchRanking();     // preenche quando o gviz chega
-  }
-
   /* ---------------------------------------------------------------- boot */
   TIP = $('tip');
   var rt;
-  addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (daily.length && !window.__RANK_ONLY__) refresh(); }, 180); });
-  if (window.__RANK_ONLY__) { initRankingOnly(); }
-  else if (!daily.length) { $('overviewView').innerHTML = '<div class="panel"><div class="loading">Sem dados. Rode o build.</div></div>'; }
+  addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (daily.length) refresh(); }, 180); });
+  if (!daily.length) { $('overviewView').innerHTML = '<div class="panel"><div class="loading">Sem dados. Rode o build.</div></div>'; }
   else { shell(); fetchRanking(); }
 })();
