@@ -874,10 +874,8 @@
       : len + (len > 1 ? ' dias selecionados' : ' dia selecionado');
     $('overviewView').hidden = STATE.tab !== 'overview';
     $('trafficView').hidden = STATE.tab !== 'traffic';
-    $('reportView').hidden = STATE.tab !== 'report';
-    if (STATE.tab === 'overview') renderOverview();
-    else if (STATE.tab === 'traffic') renderTraffic();
-    else renderReport();
+    if (STATE.tab === 'traffic') renderTraffic();
+    else renderOverview();
   }
   function setPeriod(from, to, preset) {
     STATE.from = clampD(from); STATE.to = clampD(to); STATE.preset = preset || 'custom';
@@ -916,7 +914,7 @@
     $('from').onchange = clampDates; $('to').onchange = clampDates;
     $('cmp').onclick = function (e) { STATE.compare = !STATE.compare; e.currentTarget.classList.toggle('on', STATE.compare); e.currentTarget.setAttribute('aria-pressed', STATE.compare); refresh(); };
 
-    try { var tv = localStorage.getItem('cc-tab'); if (['overview', 'traffic', 'report'].indexOf(tv) >= 0) STATE.tab = tv; } catch (e) { }
+    try { var tv = localStorage.getItem('cc-tab'); if (['overview', 'traffic'].indexOf(tv) >= 0) STATE.tab = tv; } catch (e) { }
     Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
       b.setAttribute('aria-selected', b.dataset.tab === STATE.tab);
       b.onclick = function () {
@@ -928,7 +926,7 @@
     });
 
     initCampSelector();
-    setPeriod(minDate, maxDate, 'all');
+    setPeriod(firstOfMonth(maxDate), maxDate, 'month');
   }
 
   /* ---------------------------------------------------------------- tema */
