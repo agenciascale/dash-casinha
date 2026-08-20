@@ -79,13 +79,17 @@ $dd = @{}   # date -> agregados do funil
 foreach ($r in $rows) {
   $day = ("$($r.date_start)").Trim()
   if ($day -notmatch '^\d{4}-\d{2}-\d{2}$') { continue }
+  # SO a campanha de formulario (leads): nome comeca "CASINHA | E2-CAP" E termina "Forms"
+  # (case-insensitive). Futuras campanhas de form seguindo esse padrao entram automatico.
+  $campName = ("$($r.campaign_name)").Trim(); $campLo = $campName.ToLower()
+  if (-not ($campLo.StartsWith('casinha | e2-cap') -and $campLo.EndsWith('forms'))) { continue }
   $spend = (ToNum $r.spend) * $TAX
   $impr  = [int](ToNum $r.impressions); $reach = [int](ToNum $r.reach)
   $clk   = [int](ToNum $r.inline_link_clicks)        # cliques no LINK (Leandro: CTR sempre de link)
   $lead  = Get-ActionVal $r.actions $LEAD_TYPE
   $msg   = Get-ActionVal $r.actions $MSG_TYPE
   $grain.Add([ordered]@{
-    d=$day; camp=("$($r.campaign_name)").Trim(); adset=("$($r.adset_name)").Trim(); ad=("$($r.ad_name)").Trim();
+    d=$day; camp=$campName; adset=("$($r.adset_name)").Trim(); ad=("$($r.ad_name)").Trim();
     spend=[math]::Round($spend,2); impr=$impr; reach=$reach; clk=$clk; lead=$lead; msg=$msg
   })
   if (-not $dd.ContainsKey($day)) { $dd[$day] = @{ spend=0.0; impr=0; reach=0; clk=0; lead=0; msg=0 } }

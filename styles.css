@@ -314,3 +314,40 @@ footer code{background:var(--plane);border-radius:4px;padding:1px 5px;font-size:
 .rl-badge.t-alta{background:color-mix(in srgb,var(--good) 20%,transparent);color:var(--good-text)}
 .rl-badge.t-media{background:color-mix(in srgb,var(--warning) 22%,transparent);color:var(--warn-text)}
 .rl-badge.t-baixa{background:color-mix(in srgb,var(--ink-3) 22%,transparent);color:var(--ink-2)}
+/* barra de proporção por faixa (visual) */
+.rbar{display:flex;height:30px;border-radius:9px;overflow:hidden;background:var(--plane);border:1px solid var(--ring)}
+.rseg{display:flex;align-items:center;justify-content:center;min-width:2px;transition:width .3s}
+.rseg span{font-size:12px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.28)}
+.rseg.s-alta{background:var(--good)} .rseg.s-media{background:var(--warning)} .rseg.s-baixa{background:color-mix(in srgb,var(--ink-3) 78%,var(--plane))}
+.rbar-empty{display:flex;align-items:center;justify-content:center;width:100%;font-size:12.5px;color:var(--ink-3)}
+.rlegend{display:flex;flex-wrap:wrap;gap:14px;margin-top:9px}
+.rleg{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2)}
+.rleg .rdot{width:9px;height:9px;border-radius:3px}
+.rleg .rdot.s-alta{background:var(--good)} .rleg .rdot.s-media{background:var(--warning)} .rleg .rdot.s-baixa{background:color-mix(in srgb,var(--ink-3) 78%,var(--plane))}
+.rleg .rn{font-weight:800;color:var(--ink-1)} .rleg .rp{color:var(--ink-3)}
+/* lista protegida: abas + rolagem + botão WhatsApp */
+.rl-subtabs{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.rl-tabbtn{font:inherit;font-size:13px;font-weight:650;padding:7px 13px;border:1px solid var(--ring);border-radius:9px;background:var(--card);color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.rl-tabbtn span{font-size:11px;font-weight:700;background:var(--plane);color:var(--ink-3);padding:1px 7px;border-radius:999px}
+.rl-tabbtn.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.rl-tabbtn.on span{background:color-mix(in srgb,var(--brand-ink) 25%,transparent);color:var(--brand-ink)}
+.rl-scroll{max-height:340px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--ring);border-radius:10px}
+.rl-scroll .rl-tbl{table-layout:fixed;width:100%;min-width:0}
+.rl-scroll .rl-tbl th{position:sticky;top:0;background:var(--card);z-index:1}
+.rl-scroll .rl-tbl th,.rl-scroll .rl-tbl td{text-align:left;white-space:normal}
+.rl-scroll .rl-tbl th:first-child,.rl-scroll .rl-tbl td:first-child{min-width:0;max-width:none}
+.rl-scroll .rl-tbl th:nth-child(1),.rl-scroll .rl-tbl td:nth-child(1){width:34px}
+.rl-scroll .rl-tbl th:nth-child(2),.rl-scroll .rl-tbl td:nth-child(2){width:86px}
+.rl-scroll .rl-tbl th:nth-child(4),.rl-scroll .rl-tbl td:nth-child(4){width:50px}
+.rl-scroll .rl-tbl th:nth-child(5),.rl-scroll .rl-tbl td:nth-child(5){width:118px}
+.rl-scroll .rl-tbl .rl-act{text-align:right}
+.rl-nm{overflow:hidden;text-overflow:ellipsis}
+.rl-nm{font-weight:600;color:var(--ink-1)} .rl-nm small{display:block;font-weight:500;color:var(--ink-3);font-size:11.5px;font-variant-numeric:tabular-nums;margin-top:1px}
+.rl-act{text-align:right}
+.wabtn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;text-decoration:none;color:#fff;background:#25d366;padding:6px 11px;border-radius:8px;white-space:nowrap}
+.wabtn:hover{background:#1eb457}
+.rl-nowa{font-size:11.5px;color:var(--ink-3)}
+.rl-empty{text-align:center;color:var(--ink-3);padding:18px 9px}
+/* visão diária: ~5 linhas + rolagem, cabeçalho fixo */
+.daily-scroll{max-height:250px;overflow-y:auto}
+.daily-scroll table.daily thead th{position:sticky;top:0;background:var(--card);z-index:1}

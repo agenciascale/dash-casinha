@@ -47,7 +47,7 @@
   function clampD(ds) { return ds < minDate ? minDate : (ds > maxDate ? maxDate : ds); }
 
   var STATE = {
-    from: minDate, to: maxDate, preset: 'all', compare: true, tab: 'overview',
+    from: minDate, to: maxDate, preset: 'month', compare: false, tab: 'overview',
     metric: 'spend', treeSort: { key: 'spend', dir: -1 }, expanded: {}, camps: null
   };
   // lista de campanhas presentes (por gasto desc)
@@ -267,7 +267,7 @@
 
   /* ---------------------------------------------------------------- deltas */
   function miniDelta(cur, prev, better) {
-    if (!STATE.compare || !ok(prev) || prev === 0 || !ok(cur)) return '<span class="flat">—</span>';
+    if (!STATE.compare || !ok(prev) || prev === 0 || !ok(cur)) return '';
     var ch = (cur - prev) / Math.abs(prev);
     var ar = Math.abs(ch) < 0.0005 ? '→' : (ch > 0 ? '▲' : '▼');
     var cls;
@@ -343,6 +343,7 @@
   var RANK = { loaded: false, error: false, casamento: [], corporativo: [] };
   var rankUnlocked = false;
   try { rankUnlocked = sessionStorage.getItem('cc-rank') === '1'; } catch (e) { }
+  var rankListTab = 'casamento';   // sub-aba da lista protegida (casamento/corporativo)
 
   function normTok(s) {
     return String(s == null ? '' : s).toLowerCase()
@@ -425,26 +426,46 @@
       '<button class="btn on" id="rankGo">Ver lista</button></div>' +
       '<div class="rl-err" id="rankErr" hidden>Senha incorreta.</div></div>';
   }
+  // barra de proporção + legenda por faixa (visual, sem PII)
+  function rankFormVisual(fm, agg) {
+    var segs = RANK_TIERS.map(function (t) { var q = agg[t.k]; return { t: t, q: q, pct: agg.total > 0 ? q / agg.total * 100 : 0 }; });
+    var bar = agg.total > 0 ? segs.map(function (s) {
+      if (s.pct <= 0) return '';
+      return '<div class="rseg s-' + s.t.k + '" style="width:' + s.pct.toFixed(2) + '%" title="' + s.t.lab + ': ' + int(s.q) + ' (' + s.pct.toFixed(0) + '%)">' +
+        (s.pct >= 8 ? '<span>' + int(s.q) + '</span>' : '') + '</div>';
+    }).join('') : '<div class="rbar-empty">sem leads no período</div>';
+    var legend = segs.map(function (s) {
+      return '<div class="rleg"><span class="rdot s-' + s.t.k + '"></span>' + s.t.emo + ' <b>' + s.t.lab + '</b>' +
+        '<span class="rn">' + int(s.q) + '</span><span class="rp">' + s.pct.toFixed(0) + '%</span></div>';
+    }).join('');
+    return '<div class="rankform"><h3>' + esc(fm.label) + ' <span>' + int(agg.total) + ' leads no período</span></h3>' +
+      '<div class="rbar">' + bar + '</div><div class="rlegend">' + legend + '</div></div>';
+  }
+  // lista protegida: abas por form + rolagem + botão WhatsApp por linha
   function rankListHTML(from, to) {
-    var all = [];
-    RANK_CFG.forms.forEach(function (fm) {
-      rankInPeriod(RANK[fm.key], from, to).rows.forEach(function (x) { all.push({ form: fm.label, x: x }); });
-    });
-    all.sort(function (a, b) { return b.x.score - a.x.score || (a.x.day < b.x.day ? 1 : a.x.day > b.x.day ? -1 : 0); });
-    var head = '<div class="rl-head">🔓 <b>Lista ranqueada</b> <span>— ' + int(all.length) +
-      ' leads no período, ordenados por qualificação</span><button class="btn rl-hide" id="rankHide">Ocultar</button></div>';
-    if (!all.length) return '<div class="rl-open">' + head + '<p class="note">Nenhum lead no período selecionado.</p></div>';
+    var counts = {}; RANK_CFG.forms.forEach(function (fm) { counts[fm.key] = rankInPeriod(RANK[fm.key], from, to); });
+    var total = 0; RANK_CFG.forms.forEach(function (fm) { total += counts[fm.key].total; });
+    var subtabs = RANK_CFG.forms.map(function (fm) {
+      return '<button class="rl-tabbtn' + (fm.key === rankListTab ? ' on' : '') + '" data-rltab="' + fm.key + '">' +
+        esc(fm.label) + ' <span>' + int(counts[fm.key].total) + '</span></button>';
+    }).join('');
+    var rows = counts[rankListTab] ? counts[rankListTab].rows.slice() : [];
+    rows.sort(function (a, b) { return b.score - a.score || (a.day < b.day ? 1 : a.day > b.day ? -1 : 0); });
     var TB = { 2: ['🟢', 'Alta', 't-alta'], 1: ['🟡', 'Média', 't-media'], 0: ['🔵', 'Baixa', 't-baixa'] };
-    var body = all.map(function (o, i) {
-      var t = TB[o.x.score], ph = o.x.phone, waNum = ph.replace(/\D/g, '');
-      var wa = waNum ? '<a href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener">' + esc(ph) + '</a>' : '—';
+    var body = rows.length ? rows.map(function (x, i) {
+      var t = TB[x.score], waNum = (x.phone || '').replace(/\D/g, '');
+      var btn = waNum ? '<a class="wabtn" href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener">💬 WhatsApp</a>' : '<span class="rl-nowa">sem nº</span>';
       return '<tr><td class="rl-i">' + (i + 1) + '</td>' +
         '<td><span class="rl-badge ' + t[2] + '">' + t[0] + ' ' + t[1] + '</span></td>' +
-        '<td>' + esc(o.form) + '</td><td>' + esc(o.x.name || '—') + '</td>' +
-        '<td class="rl-wa">' + wa + '</td><td class="rl-d">' + brDate(o.x.day) + '</td></tr>';
-    }).join('');
+        '<td class="rl-nm">' + esc(x.name || '—') + '<small>' + esc(x.phone || '') + '</small></td>' +
+        '<td class="rl-d">' + brDate(x.day) + '</td>' +
+        '<td class="rl-act">' + btn + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="rl-empty">Nenhum lead deste tipo no período.</td></tr>';
+    var head = '<div class="rl-head">🔓 <b>Lista ranqueada</b> <span>— ' + int(total) +
+      ' leads no período, ordenados por qualificação</span><button class="btn rl-hide" id="rankHide">Ocultar</button></div>';
     return '<div class="rl-open">' + head +
-      '<div class="tblwrap"><table class="rl-tbl"><thead><tr><th>#</th><th>Faixa</th><th>Form</th><th>Nome</th><th>WhatsApp</th><th>Data</th></tr></thead><tbody>' +
+      '<div class="rl-subtabs">' + subtabs + '</div>' +
+      '<div class="rl-scroll"><table class="rl-tbl"><thead><tr><th>#</th><th>Faixa</th><th>Nome / WhatsApp</th><th>Data</th><th></th></tr></thead><tbody>' +
       body + '</tbody></table></div></div>';
   }
 
@@ -457,18 +478,7 @@
       return;
     }
     var from = STATE.from, to = STATE.to;
-    var blocks = RANK_CFG.forms.map(function (fm) {
-      var agg = rankInPeriod(RANK[fm.key], from, to);
-      var cards = RANK_TIERS.map(function (t) {
-        var q = agg[t.k], rate = agg.total > 0 ? (q / agg.total * 100) : 0;
-        return '<div class="qcard ' + t.cls + '"><div class="qk">' + t.emo + ' ' + t.lab + '</div>' +
-          '<div class="qv">' + int(q) + '</div>' +
-          '<div class="qbar"><div class="qbar-fill" style="width:' + rate.toFixed(0) + '%"></div></div>' +
-          '<div class="qd"><b>' + rate.toFixed(0) + '%</b> · ' + t.sub + '</div></div>';
-      }).join('');
-      return '<div class="rankform"><h3>' + esc(fm.label) + ' <span>' + int(agg.total) + ' leads no período</span></h3>' +
-        '<div class="qgrid">' + cards + '</div></div>';
-    }).join('');
+    var blocks = RANK_CFG.forms.map(function (fm) { return rankFormVisual(fm, rankInPeriod(RANK[fm.key], from, to)); }).join('');
     el.innerHTML = blocks + '<div class="ranklist">' + (rankUnlocked ? rankListHTML(from, to) : rankLockHTML()) + '</div>';
     var go = $('rankGo');
     if (go) {
@@ -482,13 +492,14 @@
     }
     var hide = $('rankHide');
     if (hide) hide.onclick = function () { rankUnlocked = false; try { sessionStorage.removeItem('cc-rank'); } catch (e) { } paintRanking(); };
+    Array.prototype.forEach.call(el.querySelectorAll('[data-rltab]'), function (b) { b.onclick = function () { rankListTab = b.dataset.rltab; paintRanking(); }; });
   }
 
   /* ================================================================ VISÃO GERAL */
   function renderOverview() {
     var from = STATE.from, to = STATE.to, len = diffDays(from, to) + 1;
     var pTo = dayAdd(from, -1), pFrom = dayAdd(pTo, -(len - 1));
-    var cur = aggregate(from, to), prev = STATE.compare ? aggregate(pFrom, pTo) : null;
+    var cur = aggregate(from, to);
 
     var h = health(cur), sc = scoreColor(h.score);
     var healthHTML = gauge(h.score, sc) +
@@ -505,13 +516,13 @@
 
     var heroHTML =
       '<div class="hcard"><div class="hk">💸 Investimento <small>c/ imposto</small></div>' +
-      '<div class="hv">' + M.money(cur.spend) + '</div><div class="hd">' + miniDelta(cur.spend, prev && prev.spend, null) + ' vs anterior</div></div>' +
+      '<div class="hv">' + M.money(cur.spend) + '</div><div class="hd">' + M.int(cur.impr) + ' impressões no período</div></div>' +
       '<div class="op">→</div>' +
       '<div class="hcard"><div class="hk">🧲 Leads <small>formulário</small></div>' +
-      '<div class="hv g">' + M.int(cur.lead) + '</div><div class="hd">' + miniDelta(cur.lead, prev && prev.lead, true) + ' vs anterior</div></div>' +
+      '<div class="hv g">' + M.int(cur.lead) + '</div><div class="hd">' + M.pct1(cur.leadRate) + ' dos cliques viram lead</div></div>' +
       '<div class="op">=</div>' +
       '<div class="hcard roas"><div class="hk">🎯 Custo por lead <small>CPL</small></div>' +
-      '<div class="hv">' + M.money(cur.cpl) + '</div><div class="hd">' + miniDelta(cur.cpl, prev && prev.cpl, false) + ' vs anterior</div></div>' +
+      '<div class="hv">' + M.money(cur.cpl) + '</div><div class="hd">por lead de formulário</div></div>' +
       '<div class="op">·</div>' +
       '<div class="hcard"><div class="hk">💬 Mensagens <small>secundário</small></div>' +
       '<div class="hv">' + M.int(cur.msg) + '</div><div class="hd">custo/msg ' + M.money(cur.cpmsg) + '</div></div>';
@@ -538,8 +549,8 @@
       '<div class="panel"><h2>Resultados por dia</h2><p class="note">Barras = <b>Investimento c/ imposto</b> (esq., R$) · linha = <b>Leads</b> (dir., nº).</p><div class="legend" id="legA"></div><div id="chA"></div>' +
       '<h2 style="margin-top:20px">Leads × Mensagens × Custo/lead</h2><p class="note">Barras = <b>Leads</b> e <b>Mensagens</b> (esq., nº) · linha = <b>Custo por lead</b> (dir., R$).</p><div class="legend" id="legB"></div><div id="chB"></div></div>' +
       '</div>' +
-      '<div class="panel"><h2 id="metricTitle">Investimento por dia</h2><p class="note">Escolha a métrica; com a comparação ligada, a linha tracejada é o período anterior alinhado dia a dia.</p><div class="tabs" id="metricTabs"></div><div class="legend" id="legend"></div><div id="chMetric"></div></div>' +
-      '<div class="panel"><h2>Visão diária — principais métricas por dia</h2><p class="note">Uma linha por dia, mais recente no topo. Heatmap por coluna: <b style="color:var(--good-text)">verde = melhor</b>, <b style="color:var(--critical)">vermelho = pior</b> no período.</p><div class="tblwrap"><table id="dtbl" class="daily"></table></div></div>';
+      '<div class="panel"><h2 id="metricTitle">Investimento por dia</h2><p class="note">Escolha a métrica pra ver a evolução dia a dia no período.</p><div class="tabs" id="metricTabs"></div><div class="legend" id="legend"></div><div id="chMetric"></div></div>' +
+      '<div class="panel"><h2>Visão diária — principais métricas por dia</h2><p class="note">Uma linha por dia, mais recente no topo — role pra ver os demais dias. Heatmap por coluna: <b style="color:var(--good-text)">verde = melhor</b>, <b style="color:var(--critical)">vermelho = pior</b> no período.</p><div class="tblwrap daily-scroll"><table id="dtbl" class="daily"></table></div></div>';
 
     $('overviewView').innerHTML = overview;
     paintRanking();
@@ -869,9 +880,7 @@
   function refresh() {
     var len = diffDays(STATE.from, STATE.to) + 1;
     $('filterBar').innerHTML = filterBarHTML();
-    $('cmpNote').textContent = STATE.compare
-      ? 'comparando com ' + brFull(dayAdd(dayAdd(STATE.from, -1), -(len - 1))) + ' – ' + brFull(dayAdd(STATE.from, -1)) + ' (' + len + (len > 1 ? ' dias' : ' dia') + ')'
-      : len + (len > 1 ? ' dias selecionados' : ' dia selecionado');
+    $('cmpNote').textContent = len + (len > 1 ? ' dias selecionados' : ' dia selecionado');
     $('overviewView').hidden = STATE.tab !== 'overview';
     $('trafficView').hidden = STATE.tab !== 'traffic';
     if (STATE.tab === 'traffic') renderTraffic();
@@ -912,7 +921,6 @@
     });
     function clampDates() { var f = $('from').value, t = $('to').value; if (!f || !t) return; if (f > t) { var tmp = f; f = t; t = tmp; } setPeriod(f, t, 'custom'); }
     $('from').onchange = clampDates; $('to').onchange = clampDates;
-    $('cmp').onclick = function (e) { STATE.compare = !STATE.compare; e.currentTarget.classList.toggle('on', STATE.compare); e.currentTarget.setAttribute('aria-pressed', STATE.compare); refresh(); };
 
     try { var tv = localStorage.getItem('cc-tab'); if (['overview', 'traffic'].indexOf(tv) >= 0) STATE.tab = tv; } catch (e) { }
     Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
@@ -925,7 +933,6 @@
       };
     });
 
-    initCampSelector();
     setPeriod(firstOfMonth(maxDate), maxDate, 'month');
   }
 
