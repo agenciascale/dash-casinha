@@ -344,6 +344,7 @@
   var rankUnlocked = false;
   try { rankUnlocked = sessionStorage.getItem('cc-rank') === '1'; } catch (e) { }
   var rankListTab = 'casamento';   // sub-aba da lista protegida (casamento/corporativo)
+  var rankTierFilter = 'all';      // filtro de faixa na lista (all/alta/media/baixa)
 
   function normTok(s) {
     return String(s == null ? '' : s).toLowerCase()
@@ -449,7 +450,16 @@
       return '<button class="rl-tabbtn' + (fm.key === rankListTab ? ' on' : '') + '" data-rltab="' + fm.key + '">' +
         esc(fm.label) + ' <span>' + int(counts[fm.key].total) + '</span></button>';
     }).join('');
-    var rows = counts[rankListTab] ? counts[rankListTab].rows.slice() : [];
+    // filtro por faixa (Todas / Alta / Média / Baixa) dentro do form selecionado
+    var agg = counts[rankListTab] || { alta: 0, media: 0, baixa: 0, total: 0, rows: [] };
+    var tierBtns = '<div class="rl-tierfilter">' +
+      '<button class="rl-fbtn' + (rankTierFilter === 'all' ? ' on' : '') + '" data-rltier="all">Todas <span>' + int(agg.total) + '</span></button>' +
+      RANK_TIERS.map(function (t) {
+        return '<button class="rl-fbtn f-' + t.k + (rankTierFilter === t.k ? ' on' : '') + '" data-rltier="' + t.k + '">' +
+          t.emo + ' ' + t.lab + ' <span>' + int(agg[t.k]) + '</span></button>';
+      }).join('') + '</div>';
+    var rows = agg.rows.slice();
+    if (rankTierFilter !== 'all') rows = rows.filter(function (x) { return tierName(x.score) === rankTierFilter; });
     rows.sort(function (a, b) { return b.score - a.score || (a.day < b.day ? 1 : a.day > b.day ? -1 : 0); });
     var TB = { 2: ['🟢', 'Alta', 't-alta'], 1: ['🟡', 'Média', 't-media'], 0: ['🔵', 'Baixa', 't-baixa'] };
     var body = rows.length ? rows.map(function (x, i) {
@@ -460,11 +470,11 @@
         '<td class="rl-nm">' + esc(x.name || '—') + '<small>' + esc(x.phone || '') + '</small></td>' +
         '<td class="rl-d">' + brDate(x.day) + '</td>' +
         '<td class="rl-act">' + btn + '</td></tr>';
-    }).join('') : '<tr><td colspan="5" class="rl-empty">Nenhum lead deste tipo no período.</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="rl-empty">Nenhum lead nesta faixa/período.</td></tr>';
     var head = '<div class="rl-head">🔓 <b>Lista ranqueada</b> <span>— ' + int(total) +
       ' leads no período, ordenados por qualificação</span><button class="btn rl-hide" id="rankHide">Ocultar</button></div>';
     return '<div class="rl-open">' + head +
-      '<div class="rl-subtabs">' + subtabs + '</div>' +
+      '<div class="rl-subtabs">' + subtabs + '</div>' + tierBtns +
       '<div class="rl-scroll"><table class="rl-tbl"><thead><tr><th>#</th><th>Faixa</th><th>Nome / WhatsApp</th><th>Data</th><th></th></tr></thead><tbody>' +
       body + '</tbody></table></div></div>';
   }
@@ -492,7 +502,8 @@
     }
     var hide = $('rankHide');
     if (hide) hide.onclick = function () { rankUnlocked = false; try { sessionStorage.removeItem('cc-rank'); } catch (e) { } paintRanking(); };
-    Array.prototype.forEach.call(el.querySelectorAll('[data-rltab]'), function (b) { b.onclick = function () { rankListTab = b.dataset.rltab; paintRanking(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-rltab]'), function (b) { b.onclick = function () { rankListTab = b.dataset.rltab; rankTierFilter = 'all'; paintRanking(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-rltier]'), function (b) { b.onclick = function () { rankTierFilter = b.dataset.rltier; paintRanking(); }; });
   }
 
   /* ================================================================ VISÃO GERAL */
@@ -937,15 +948,24 @@
   }
 
   /* ---------------------------------------------------------------- tema */
-  function applyTheme(t) { document.documentElement.dataset.theme = t; $('theme').textContent = t === 'dark' ? 'Claro' : 'Escuro'; try { localStorage.setItem('cc-theme', t); } catch (e) { } }
-  $('theme').onclick = function () { applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); };
-  $('refresh').onclick = function () { var b = this; b.textContent = '⏳ Atualizando…'; b.disabled = true; setTimeout(function () { location.reload(); }, 60); };
+  function applyTheme(t) { document.documentElement.dataset.theme = t; var tb = $('theme'); if (tb) tb.textContent = t === 'dark' ? 'Claro' : 'Escuro'; try { localStorage.setItem('cc-theme', t); } catch (e) { } }
+  if ($('theme')) $('theme').onclick = function () { applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); };
+  if ($('refresh')) $('refresh').onclick = function () { var b = this; b.textContent = '⏳ Atualizando…'; b.disabled = true; setTimeout(function () { location.reload(); }, 60); };
   try { var saved = localStorage.getItem('cc-theme'); applyTheme(saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')); } catch (e) { applyTheme('dark'); }
+
+  /* ---------------------------------------------------------------- modo só-ranking (página do cliente) */
+  function initRankingOnly() {
+    STATE.tab = 'overview';
+    STATE.from = '2000-01-01'; STATE.to = '2100-12-31';   // todos os leads (página do cliente não filtra por data)
+    paintRanking();     // mostra "carregando…"
+    fetchRanking();     // preenche quando o gviz chega
+  }
 
   /* ---------------------------------------------------------------- boot */
   TIP = $('tip');
   var rt;
-  addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (daily.length) refresh(); }, 180); });
-  if (!daily.length) { $('overviewView').innerHTML = '<div class="panel"><div class="loading">Sem dados. Rode o build.</div></div>'; }
+  addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (daily.length && !window.__RANK_ONLY__) refresh(); }, 180); });
+  if (window.__RANK_ONLY__) { initRankingOnly(); }
+  else if (!daily.length) { $('overviewView').innerHTML = '<div class="panel"><div class="loading">Sem dados. Rode o build.</div></div>'; }
   else { shell(); fetchRanking(); }
 })();
