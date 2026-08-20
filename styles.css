@@ -285,3 +285,32 @@ footer code{background:var(--plane);border-radius:4px;padding:1px 5px;font-size:
 .qbar-fill{height:100%;background:var(--brand);border-radius:999px}
 .qd{font-size:12.5px;color:var(--ink-2)}
 .qd b{color:var(--good-text)}
+/* ---- Ranking de leads qualificados (tiers + lista protegida) ---- */
+.rankform+.rankform{margin-top:18px}
+.rankform h3{font-size:14px;font-weight:750;margin:2px 0 10px;display:flex;align-items:baseline;gap:8px}
+.rankform h3 span{font-size:12px;font-weight:500;color:var(--ink-3)}
+.qcard.t-alta{border-color:color-mix(in srgb,var(--good) 45%,var(--ring));background:color-mix(in srgb,var(--good) 8%,var(--card))}
+.qcard.t-alta .qv{color:var(--good-text)} .qcard.t-alta .qbar-fill{background:var(--good)}
+.qcard.t-media{border-color:color-mix(in srgb,var(--warning) 45%,var(--ring));background:color-mix(in srgb,var(--warning) 8%,var(--card))}
+.qcard.t-media .qv{color:var(--warn-text)} .qcard.t-media .qbar-fill{background:var(--warning)}
+.qcard.t-baixa{border-color:var(--ring);background:var(--card)}
+.qcard.t-baixa .qv{color:var(--ink-2)} .qcard.t-baixa .qbar-fill{background:var(--ink-3)}
+.qcard .qd b{color:inherit}
+.ranklist{margin-top:18px;border-top:1px solid var(--ring);padding-top:16px}
+.rl-head{font-size:13px;color:var(--ink-2);margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rl-head span{color:var(--ink-3);font-weight:500}
+.rl-form{display:flex;gap:8px;align-items:center}
+.rl-form input{font:inherit;padding:8px 11px;border:1px solid var(--ring);border-radius:9px;background:var(--card);color:var(--ink-1);width:180px}
+.rl-form input:focus{outline:none;border-color:var(--brand)}
+.rl-err{color:var(--critical);font-size:12.5px;margin-top:7px}
+.rl-hide{margin-left:auto;padding:5px 11px;font-size:12px}
+.rl-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.rl-tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:700;padding:7px 9px;border-bottom:1px solid var(--ring)}
+.rl-tbl td{padding:8px 9px;border-bottom:1px solid color-mix(in srgb,var(--ring) 55%,transparent)}
+.rl-tbl tr:hover td{background:var(--brand-soft)}
+.rl-i,.rl-d{color:var(--ink-3);font-variant-numeric:tabular-nums} .rl-d{white-space:nowrap}
+.rl-wa a{color:var(--brand);text-decoration:none;font-variant-numeric:tabular-nums} .rl-wa a:hover{text-decoration:underline}
+.rl-badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.rl-badge.t-alta{background:color-mix(in srgb,var(--good) 20%,transparent);color:var(--good-text)}
+.rl-badge.t-media{background:color-mix(in srgb,var(--warning) 22%,transparent);color:var(--warn-text)}
+.rl-badge.t-baixa{background:color-mix(in srgb,var(--ink-3) 22%,transparent);color:var(--ink-2)}

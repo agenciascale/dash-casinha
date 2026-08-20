@@ -328,6 +328,162 @@
     { k: 'cpmsg', label: 'Custo/msg', fmt: M.money, scale: 'low' }
   ];
 
+  /* ================================================================ RANKING (leads dos formulários)
+     Leitura AO VIVO da planilha de forms via gviz CSV (client-side, igual dash do Dr. Vinícius).
+     Faixas por qualificação (Leandro): bate os 2 critérios = 🟢 Alta · bate 1 = 🟡 Média · 0 = 🔵 Baixa.
+       Casamento   : convidados 30–60 (20_a_40|41_a_60)  ·  prazo ≤6m (até 3m | 3–6m)
+       Corporativo : 60–80 pessoas (61_a_80)             ·  gastronomia happy hour | welcome coffee
+     Só a LISTA com nome+WhatsApp (PII) fica atrás de senha; os NÚMEROS são públicos. */
+  var RANK_CFG = {
+    id: '1kVliNsOeAhXMisENdzn8yhxfxrhNjy3K2kkKTeslh5M',
+    forms: [{ key: 'casamento', label: 'Casamento', tab: 'Casamento' },
+            { key: 'corporativo', label: 'Corporativo', tab: 'Corporativo' }]
+  };
+  var RANK_PW = 'casinha';
+  var RANK = { loaded: false, error: false, casamento: [], corporativo: [] };
+  var rankUnlocked = false;
+  try { rankUnlocked = sessionStorage.getItem('cc-rank') === '1'; } catch (e) { }
+
+  function normTok(s) {
+    return String(s == null ? '' : s).toLowerCase()
+      .replace(/[áàâã]/g, 'a').replace(/[éèê]/g, 'e').replace(/[íì]/g, 'i')
+      .replace(/[óòô]/g, 'o').replace(/[úù]/g, 'u').replace(/ç/g, 'c');
+  }
+  // 2 = bate os 2 critérios (Alta) · 1 = bate 1 (Média) · 0 = nenhum (Baixa)
+  function tierScore(formKey, guest, when) {
+    var g = normTok(guest), w = normTok(when), c1, c2;
+    if (formKey === 'casamento') { c1 = /20_a_40|41_a_60/.test(g); c2 = /ate_3_meses|3_e_6/.test(w); }
+    else { c1 = /61_a_80/.test(g); c2 = /happy_hour|welcome_coffee/.test(w); }
+    return (c1 ? 1 : 0) + (c2 ? 1 : 0);
+  }
+  function tierName(s) { return s === 2 ? 'alta' : s === 1 ? 'media' : 'baixa'; }
+
+  // parser CSV robusto (aspas, vírgulas e quebras de linha dentro de campo)
+  function parseCSV(text) {
+    var rows = [], row = [], f = '', i = 0, n = text.length, q = false, c;
+    while (i < n) {
+      c = text.charAt(i);
+      if (q) {
+        if (c === '"') { if (text.charAt(i + 1) === '"') { f += '"'; i++; } else q = false; }
+        else f += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { row.push(f); f = ''; }
+      else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+      else if (c !== '\r') f += c;
+      i++;
+    }
+    if (f.length || row.length) { row.push(f); rows.push(row); }
+    return rows;
+  }
+  function cleanPhone(s) { return String(s == null ? '' : s).replace(/^p:/i, '').replace(/[^\d+]/g, ''); }
+
+  function parseFormCsv(formKey, text) {
+    var rows = parseCSV(text), out = [], seen = {};
+    for (var r = 1; r < rows.length; r++) {
+      var v = rows[r]; if (!v || v.length < 15) continue;
+      var id = v[0], created = v[1] || '';
+      if (!id || id === 'id' || created === 'created_time' || created.length < 10) continue;
+      var day = created.slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      if (seen[id]) continue; seen[id] = 1;                       // dedupe por id
+      out.push({ id: id, day: day, name: (v[16] || '').trim(), phone: cleanPhone(v[17]),
+                 score: tierScore(formKey, v[12], v[14]) });
+    }
+    return out;
+  }
+
+  function fetchRanking() {
+    var pend = RANK_CFG.forms.length;
+    RANK_CFG.forms.forEach(function (fm) {
+      var u = 'https://docs.google.com/spreadsheets/d/' + RANK_CFG.id +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(fm.tab);
+      fetch(u).then(function (r) { return r.text(); })
+        .then(function (txt) { RANK[fm.key] = parseFormCsv(fm.key, txt); })
+        .catch(function () { RANK.error = true; })
+        .then(function () { if (--pend === 0) { RANK.loaded = true; if (STATE.tab === 'overview') paintRanking(); } });
+    });
+  }
+
+  function rankInPeriod(list, from, to) {
+    var a = { alta: 0, media: 0, baixa: 0, total: 0, rows: [] };
+    for (var i = 0; i < list.length; i++) {
+      var x = list[i]; if (x.day < from || x.day > to) continue;
+      a.total++; a[tierName(x.score)]++; a.rows.push(x);
+    }
+    return a;
+  }
+
+  var RANK_TIERS = [
+    { k: 'alta', emo: '🟢', lab: 'Alta', sub: 'bate os 2 critérios', cls: 't-alta' },
+    { k: 'media', emo: '🟡', lab: 'Média', sub: 'bate 1 critério', cls: 't-media' },
+    { k: 'baixa', emo: '🔵', lab: 'Baixa', sub: 'não bate nenhum', cls: 't-baixa' }
+  ];
+
+  function rankLockHTML() {
+    return '<div class="rank-lock">' +
+      '<div class="rl-head">🔒 <b>Lista ranqueada com contatos</b> <span>— protegida (contém nome e WhatsApp dos leads)</span></div>' +
+      '<div class="rl-form"><input type="password" id="rankPw" placeholder="Senha" autocomplete="off">' +
+      '<button class="btn on" id="rankGo">Ver lista</button></div>' +
+      '<div class="rl-err" id="rankErr" hidden>Senha incorreta.</div></div>';
+  }
+  function rankListHTML(from, to) {
+    var all = [];
+    RANK_CFG.forms.forEach(function (fm) {
+      rankInPeriod(RANK[fm.key], from, to).rows.forEach(function (x) { all.push({ form: fm.label, x: x }); });
+    });
+    all.sort(function (a, b) { return b.x.score - a.x.score || (a.x.day < b.x.day ? 1 : a.x.day > b.x.day ? -1 : 0); });
+    var head = '<div class="rl-head">🔓 <b>Lista ranqueada</b> <span>— ' + int(all.length) +
+      ' leads no período, ordenados por qualificação</span><button class="btn rl-hide" id="rankHide">Ocultar</button></div>';
+    if (!all.length) return '<div class="rl-open">' + head + '<p class="note">Nenhum lead no período selecionado.</p></div>';
+    var TB = { 2: ['🟢', 'Alta', 't-alta'], 1: ['🟡', 'Média', 't-media'], 0: ['🔵', 'Baixa', 't-baixa'] };
+    var body = all.map(function (o, i) {
+      var t = TB[o.x.score], ph = o.x.phone, waNum = ph.replace(/\D/g, '');
+      var wa = waNum ? '<a href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener">' + esc(ph) + '</a>' : '—';
+      return '<tr><td class="rl-i">' + (i + 1) + '</td>' +
+        '<td><span class="rl-badge ' + t[2] + '">' + t[0] + ' ' + t[1] + '</span></td>' +
+        '<td>' + esc(o.form) + '</td><td>' + esc(o.x.name || '—') + '</td>' +
+        '<td class="rl-wa">' + wa + '</td><td class="rl-d">' + brDate(o.x.day) + '</td></tr>';
+    }).join('');
+    return '<div class="rl-open">' + head +
+      '<div class="tblwrap"><table class="rl-tbl"><thead><tr><th>#</th><th>Faixa</th><th>Form</th><th>Nome</th><th>WhatsApp</th><th>Data</th></tr></thead><tbody>' +
+      body + '</tbody></table></div></div>';
+  }
+
+  function paintRanking() {
+    var el = $('rankBody'); if (!el) return;
+    if (!RANK.loaded) {
+      el.innerHTML = RANK.error
+        ? '<div class="loading">Não foi possível carregar o ranking dos formulários.</div>'
+        : '<div class="loading">Carregando ranking dos formulários…</div>';
+      return;
+    }
+    var from = STATE.from, to = STATE.to;
+    var blocks = RANK_CFG.forms.map(function (fm) {
+      var agg = rankInPeriod(RANK[fm.key], from, to);
+      var cards = RANK_TIERS.map(function (t) {
+        var q = agg[t.k], rate = agg.total > 0 ? (q / agg.total * 100) : 0;
+        return '<div class="qcard ' + t.cls + '"><div class="qk">' + t.emo + ' ' + t.lab + '</div>' +
+          '<div class="qv">' + int(q) + '</div>' +
+          '<div class="qbar"><div class="qbar-fill" style="width:' + rate.toFixed(0) + '%"></div></div>' +
+          '<div class="qd"><b>' + rate.toFixed(0) + '%</b> · ' + t.sub + '</div></div>';
+      }).join('');
+      return '<div class="rankform"><h3>' + esc(fm.label) + ' <span>' + int(agg.total) + ' leads no período</span></h3>' +
+        '<div class="qgrid">' + cards + '</div></div>';
+    }).join('');
+    el.innerHTML = blocks + '<div class="ranklist">' + (rankUnlocked ? rankListHTML(from, to) : rankLockHTML()) + '</div>';
+    var go = $('rankGo');
+    if (go) {
+      var tryUnlock = function () {
+        if ((($('rankPw') && $('rankPw').value) || '') === RANK_PW) {
+          rankUnlocked = true; try { sessionStorage.setItem('cc-rank', '1'); } catch (e) { } paintRanking();
+        } else { var er = $('rankErr'); if (er) er.hidden = false; }
+      };
+      go.onclick = tryUnlock;
+      var pwi = $('rankPw'); if (pwi) { pwi.onkeydown = function (e) { if (e.key === 'Enter') tryUnlock(); }; pwi.focus(); }
+    }
+    var hide = $('rankHide');
+    if (hide) hide.onclick = function () { rankUnlocked = false; try { sessionStorage.removeItem('cc-rank'); } catch (e) { } paintRanking(); };
+  }
+
   /* ================================================================ VISÃO GERAL */
   function renderOverview() {
     var from = STATE.from, to = STATE.to, len = diffDays(from, to) + 1;
@@ -365,30 +521,17 @@
       ? '<b>' + int(totRes) + ' contatos</b> no período (' + int(cur.lead) + ' leads de formulário + ' + int(cur.msg) + ' mensagens) por <b>' + M.money(cur.spend) + '</b> investidos — custo médio por contato <b>' + M.money(cur.cpr) + '</b>.'
       : 'Sem lead nem mensagem no período.';
 
-    // ---- Leads qualificados (dos formularios; contagens sem PII, respeita o periodo) ----
-    var qualHTML = '';
-    var QUAL = (typeof DASH !== 'undefined' && DASH.qual) ? DASH.qual : null;
-    if (QUAL) {
-      var qforms = [QUAL.casamento, QUAL.corporativo].filter(Boolean);
-      var qcards = qforms.map(function (f) {
-        var t = 0, q = 0;
-        if (f.byDay) { for (var d in f.byDay) { if (d >= from && d <= to) { t += (f.byDay[d].t || 0); q += (f.byDay[d].q || 0); } } }
-        var rate = t > 0 ? (q / t * 100) : 0;
-        return '<div class="qcard"><div class="qk">' + f.label + '</div>' +
-          '<div class="qv">' + int(q) + ' <small>' + (q === 1 ? 'qualificado' : 'qualificados') + '</small></div>' +
-          '<div class="qbar"><div class="qbar-fill" style="width:' + rate.toFixed(0) + '%"></div></div>' +
-          '<div class="qd"><b>' + rate.toFixed(0) + '%</b> de ' + int(t) + ' leads no período</div></div>';
-      }).join('');
-      qualHTML = '<div class="panel"><h2>Leads qualificados <span style="font-weight:500;color:var(--ink-3)">— dos formulários, no período</span></h2>' +
-        '<p class="note"><b>Casamento:</b> 30–60 convidados <b>e</b> casamento em até 6 meses. &nbsp;<b>Corporativo:</b> 60–80 pessoas <b>e</b> happy hour/welcome coffee. <span style="color:var(--ink-3)">Lista com contatos fica na planilha privada.</span></p>' +
-        '<div class="qgrid">' + qcards + '</div></div>';
-    }
+    // ---- Ranking de leads qualificados (dos formularios; leitura ao vivo via gviz, tiers + lista c/ senha) ----
+    var rankPanel =
+      '<div class="panel"><h2>Ranking de leads qualificados <span style="font-weight:500;color:var(--ink-3)">— dos formulários, no período</span></h2>' +
+      '<p class="note"><b>Casamento:</b> 30–60 convidados <b>e</b> em até 6 meses. &nbsp;<b>Corporativo:</b> 60–80 pessoas <b>e</b> happy hour/welcome coffee. &nbsp;<b>🟢 Alta</b> bate os 2 · <b>🟡 Média</b> bate 1 · <b>🔵 Baixa</b> nenhum.</p>' +
+      '<div id="rankBody"></div></div>';
 
     var overview =
       '<div class="panel"><div class="health" id="health">' + healthHTML + '</div></div>' +
       '<div class="hero" id="hero">' + heroHTML + '</div>' +
       '<p class="hero-line" style="margin-bottom:10px">' + heroLine + '</p>' +
-      qualHTML +
+      rankPanel +
       '<div class="panel"><h2>Investimento por objetivo <span style="font-weight:500;color:var(--ink-3)">— com imposto ×' + taxStr(TAX) + '</span></h2><div class="funil-grid" id="funilInv"></div></div>' +
       '<div class="grid-funnel">' +
       '<div class="panel"><h2>Funil completo</h2><p class="note">Investimento → Impressões → Cliques → Leads. Cada etapa mostra o <b>volume</b> e, à direita, o <b>custo</b> e a <b>taxa de passagem</b>.</p><div class="funnel" id="funnel"></div></div>' +
@@ -399,6 +542,7 @@
       '<div class="panel"><h2>Visão diária — principais métricas por dia</h2><p class="note">Uma linha por dia, mais recente no topo. Heatmap por coluna: <b style="color:var(--good-text)">verde = melhor</b>, <b style="color:var(--critical)">vermelho = pior</b> no período.</p><div class="tblwrap"><table id="dtbl" class="daily"></table></div></div>';
 
     $('overviewView').innerHTML = overview;
+    paintRanking();
 
     renderFunilInv(from, to);
     renderFunnel(cur);
@@ -798,5 +942,5 @@
   var rt;
   addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (daily.length) refresh(); }, 180); });
   if (!daily.length) { $('overviewView').innerHTML = '<div class="panel"><div class="loading">Sem dados. Rode o build.</div></div>'; }
-  else shell();
+  else { shell(); fetchRanking(); }
 })();
