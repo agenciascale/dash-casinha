@@ -345,13 +345,17 @@ footer code{background:var(--plane);border-radius:4px;padding:1px 5px;font-size:
 .rl-scroll .rl-tbl th{position:sticky;top:0;background:var(--card);z-index:1}
 .rl-scroll .rl-tbl th,.rl-scroll .rl-tbl td{text-align:left;white-space:normal}
 .rl-scroll .rl-tbl th:first-child,.rl-scroll .rl-tbl td:first-child{min-width:0;max-width:none}
-.rl-scroll .rl-tbl th:nth-child(1),.rl-scroll .rl-tbl td:nth-child(1){width:34px}
-.rl-scroll .rl-tbl th:nth-child(2),.rl-scroll .rl-tbl td:nth-child(2){width:86px}
-.rl-scroll .rl-tbl th:nth-child(4),.rl-scroll .rl-tbl td:nth-child(4){width:50px}
-.rl-scroll .rl-tbl th:nth-child(5),.rl-scroll .rl-tbl td:nth-child(5){width:118px}
+.rl-scroll .rl-tbl th:nth-child(1),.rl-scroll .rl-tbl td:nth-child(1){width:32px}
+.rl-scroll .rl-tbl th:nth-child(2),.rl-scroll .rl-tbl td:nth-child(2){width:84px}
+.rl-scroll .rl-tbl th:nth-child(3),.rl-scroll .rl-tbl td:nth-child(3){width:150px}
+.rl-scroll .rl-tbl th:nth-child(5),.rl-scroll .rl-tbl td:nth-child(5){width:50px}
+.rl-scroll .rl-tbl th:nth-child(6),.rl-scroll .rl-tbl td:nth-child(6){width:116px}
 .rl-scroll .rl-tbl .rl-act{text-align:right}
-.rl-nm{overflow:hidden;text-overflow:ellipsis}
-.rl-nm{font-weight:600;color:var(--ink-1)} .rl-nm small{display:block;font-weight:500;color:var(--ink-3);font-size:11.5px;font-variant-numeric:tabular-nums;margin-top:1px}
+.rl-nm{overflow:hidden;text-overflow:ellipsis;font-weight:600;color:var(--ink-1)} .rl-nm small{display:block;font-weight:500;color:var(--ink-3);font-size:11.5px;font-variant-numeric:tabular-nums;margin-top:1px}
+/* coluna Respostas do lead (critérios + se está dentro do desejado) */
+.rl-crit{display:flex;flex-wrap:wrap;gap:5px}
+.cpill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--plane);color:var(--ink-3);border:1px solid var(--ring);white-space:nowrap}
+.cpill.ok{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good-text);border-color:color-mix(in srgb,var(--good) 38%,transparent)}
 .rl-act{text-align:right}
 .wabtn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;text-decoration:none;color:#fff;background:#25d366;padding:6px 11px;border-radius:8px;white-space:nowrap}
 .wabtn:hover{background:#1eb457}

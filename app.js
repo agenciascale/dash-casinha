@@ -360,6 +360,24 @@
     return (c1 ? 1 : 0) + (c2 ? 1 : 0);
   }
   function tierName(s) { return s === 2 ? 'alta' : s === 1 ? 'media' : 'baixa'; }
+  // deixa o token da resposta legível: "de_20_a_40_pessoas" -> "20 a 40 pessoas"
+  function human(s) {
+    s = String(s == null ? '' : s).trim();
+    if (!s) return '—';
+    return s.replace(/_/g, ' ').replace(/^de\s+/i, '').replace(/^em\s+/i, '');
+  }
+  // respostas do lead nos 2 critérios de qualificação + se cada uma está dentro do desejado
+  function critFor(formKey, guest, when) {
+    var g = normTok(guest), w = normTok(when);
+    if (formKey === 'casamento') return {
+      a: { ico: '👥', val: human(guest).replace(/pessoas/i, 'convidados'), ok: /20_a_40|41_a_60/.test(g) },
+      b: { ico: '📅', val: human(when), ok: /ate_3_meses|3_e_6/.test(w) }
+    };
+    return {
+      a: { ico: '👥', val: human(guest), ok: /61_a_80/.test(g) },
+      b: { ico: '🍽️', val: human(when), ok: /happy_hour|welcome_coffee/.test(w) }
+    };
+  }
 
   // parser CSV robusto (aspas, vírgulas e quebras de linha dentro de campo)
   function parseCSV(text) {
@@ -389,6 +407,7 @@
       var day = created.slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
       if (seen[id]) continue; seen[id] = 1;                       // dedupe por id
       out.push({ id: id, day: day, name: (v[16] || '').trim(), phone: cleanPhone(v[17]),
+                 guest: (v[12] || '').trim(), when: (v[14] || '').trim(),
                  score: tierScore(formKey, v[12], v[14]) });
     }
     return out;
@@ -466,17 +485,23 @@
     var body = rows.length ? rows.map(function (x, i) {
       var t = TB[x.score], waNum = (x.phone || '').replace(/\D/g, '');
       var btn = waNum ? '<a class="wabtn" href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener">💬 WhatsApp</a>' : '<span class="rl-nowa">sem nº</span>';
+      var c = critFor(rankListTab, x.guest, x.when);
+      var crit = '<div class="rl-crit">' +
+        '<span class="cpill' + (c.a.ok ? ' ok' : '') + '" title="' + (c.a.ok ? 'dentro do desejado' : 'fora do critério') + '">' + (c.a.ok ? '✓' : '·') + ' ' + c.a.ico + ' ' + esc(c.a.val) + '</span>' +
+        '<span class="cpill' + (c.b.ok ? ' ok' : '') + '" title="' + (c.b.ok ? 'dentro do desejado' : 'fora do critério') + '">' + (c.b.ok ? '✓' : '·') + ' ' + c.b.ico + ' ' + esc(c.b.val) + '</span>' +
+        '</div>';
       return '<tr><td class="rl-i">' + (i + 1) + '</td>' +
         '<td><span class="rl-badge ' + t[2] + '">' + t[0] + ' ' + t[1] + '</span></td>' +
         '<td class="rl-nm">' + esc(x.name || '—') + '<small>' + esc(x.phone || '') + '</small></td>' +
+        '<td class="rl-crit-cell">' + crit + '</td>' +
         '<td class="rl-d">' + brDate(x.day) + '</td>' +
         '<td class="rl-act">' + btn + '</td></tr>';
-    }).join('') : '<tr><td colspan="5" class="rl-empty">Nenhum lead nesta faixa/período.</td></tr>';
+    }).join('') : '<tr><td colspan="6" class="rl-empty">Nenhum lead nesta faixa/período.</td></tr>';
     var head = '<div class="rl-head">🔓 <b>Lista ranqueada</b> <span>— ' + int(total) +
       ' leads no período, ordenados por qualificação</span><button class="btn rl-hide" id="rankHide">Ocultar</button></div>';
     return '<div class="rl-open">' + head +
       '<div class="rl-subtabs">' + subtabs + '</div>' + tierBtns +
-      '<div class="rl-scroll"><table class="rl-tbl"><thead><tr><th>#</th><th>Faixa</th><th>Nome / WhatsApp</th><th>Data</th><th></th></tr></thead><tbody>' +
+      '<div class="rl-scroll"><table class="rl-tbl"><thead><tr><th>#</th><th>Faixa</th><th>Nome / WhatsApp</th><th>Respostas do lead</th><th>Data</th><th></th></tr></thead><tbody>' +
       body + '</tbody></table></div></div>';
   }
 
