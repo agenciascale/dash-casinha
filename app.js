@@ -554,7 +554,6 @@
       '<div class="hero" id="hero">' + heroHTML + '</div>' +
       '<p class="hero-line" style="margin-bottom:10px">' + heroLine + '</p>' +
       rankPanel +
-      '<div class="panel"><h2>Investimento por objetivo <span style="font-weight:500;color:var(--ink-3)">— com imposto ×' + taxStr(TAX) + '</span></h2><div class="funil-grid" id="funilInv"></div></div>' +
       '<div class="grid-funnel">' +
       '<div class="panel"><h2>Funil completo</h2><p class="note">Investimento → Impressões → Cliques → Leads. Cada etapa mostra o <b>volume</b> e, à direita, o <b>custo</b> e a <b>taxa de passagem</b>.</p><div class="funnel" id="funnel"></div></div>' +
       '<div class="panel"><h2>Resultados por dia</h2><p class="note">Barras = <b>Investimento c/ imposto</b> (esq., R$) · linha = <b>Leads</b> (dir., nº).</p><div class="legend" id="legA"></div><div id="chA"></div>' +
@@ -566,7 +565,6 @@
     $('overviewView').innerHTML = overview;
     paintRanking();
 
-    renderFunilInv(from, to);
     renderFunnel(cur);
     var rows = dailyRows(from, to), pRows = dailyRows(pFrom, pTo);
     comboChart($('chA'), rows, { bars: [{ key: 'spend', color: 'var(--critical)', name: 'Investimento c/ imposto' }], line: { key: 'lead', color: 'var(--good)', name: 'Leads' }, leftFmt: M.money0, rightFmt: M.int, lineFmt: M.int });
@@ -674,12 +672,10 @@
     $('trafficView').innerHTML =
       '<div class="scopenote"><span>🎯 Aba operacional: métricas de mídia (Meta) e resultado por anúncio. <b>Leads</b> = formulário (Lead Ads); <b>Mensagens</b> = 1ª resposta em conversa. CTR sempre de <b>link</b>.</span></div>' +
       '<div class="kpis">' + kpis.join('') + '</div>' +
-      '<div class="panel"><h2>Investimento por objetivo <span style="font-weight:500;color:var(--ink-3)">— com imposto ×' + taxStr(TAX) + '</span></h2><div class="funil-grid" id="funilInv"></div></div>' +
       '<div class="panel"><h2>Otimização — Campanha › Conjunto › Anúncio</h2>' +
       '<p class="note">Clique numa <b>campanha</b> pra abrir os conjuntos, e num conjunto pra abrir os anúncios. Clique nos cabeçalhos pra ordenar. Heatmap: verde = melhor.</p>' +
       '<div class="tblwrap"><table id="tbl" class="tree"></table></div></div>';
 
-    renderFunilInv(from, to);
     renderTree(from, to);
   }
   function flagFor(k, v) {
