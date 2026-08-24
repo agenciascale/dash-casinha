@@ -11,7 +11,7 @@ permissions:
   id-token: write
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false     # Pages: NUNCA cancelar deploy no meio (trava o site). Runs entram em fila.
 jobs:
   build:
     runs-on: windows-latest
