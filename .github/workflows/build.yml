@@ -1,6 +1,8 @@
 name: build-deploy
 on:
-  workflow_dispatch:            # <- cron-job.org dispara isto a cada 3h
+  workflow_dispatch:            # disparo manual
+  schedule:
+    - cron: '0 * * * *'         # de hora em hora (nativo do GitHub Actions, sem depender de cron-job.org)
   push:
     branches: [main]
 permissions:
